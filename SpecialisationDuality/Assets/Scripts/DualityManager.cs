@@ -63,7 +63,6 @@ public class DualityManager : MonoBehaviour
             dissolveShader = Shader.Find("Custom/URP_DissolveEffect");
             if (dissolveShader == null)
             {
-                Debug.LogError("URP Dissolve Shader not found! Make sure it's properly imported.");
                 enabled = false;
                 return;
             }
@@ -208,9 +207,6 @@ public class DualityManager : MonoBehaviour
     // Enhanced property copying method for URP
     private void CopyMaterialProperties(Material source, Material target)
     {
-        // First, log what we're doing for debugging
-        Debug.Log($"Copying properties from {source.name} to dissolve material");
-
         // Better texture handling for URP
         if (source.HasProperty(BASE_MAP))
         {
@@ -218,7 +214,6 @@ public class DualityManager : MonoBehaviour
             if (mainTex != null && target.HasProperty(BASE_MAP))
             {
                 target.SetTexture(BASE_MAP, mainTex);
-                Debug.Log($"Copied Base Map texture from {source.name}");
 
                 // Copy texture tiling and offset
                 Vector2 offset = source.GetTextureOffset(BASE_MAP);
@@ -233,7 +228,6 @@ public class DualityManager : MonoBehaviour
             if (mainTex != null && target.HasProperty(BASE_MAP))
             {
                 target.SetTexture(BASE_MAP, mainTex);
-                Debug.Log($"Copied Main Texture from {source.name}");
 
                 // Copy texture tiling and offset
                 Vector2 offset = source.GetTextureOffset("_MainTex");
@@ -250,7 +244,6 @@ public class DualityManager : MonoBehaviour
             if (target.HasProperty(BASE_COLOR))
             {
                 target.SetColor(BASE_COLOR, color);
-                Debug.Log($"Copied Base Color: {color} from {source.name}");
             }
         }
         else if (source.HasProperty("_Color"))
@@ -259,7 +252,6 @@ public class DualityManager : MonoBehaviour
             if (target.HasProperty(BASE_COLOR))
             {
                 target.SetColor(BASE_COLOR, color);
-                Debug.Log($"Copied Color: {color} from {source.name}");
             }
         }
 
@@ -299,7 +291,6 @@ public class DualityManager : MonoBehaviour
         {
             float value = source.GetFloat(sourceProp);
             target.SetFloat(targetProp, value);
-            Debug.Log($"Copied {sourceProp}: {value} to {targetProp}");
         }
     }
 
@@ -310,7 +301,6 @@ public class DualityManager : MonoBehaviour
         {
             Color value = source.GetColor(sourceProp);
             target.SetColor(targetProp, value);
-            Debug.Log($"Copied {sourceProp} color to {targetProp}");
         }
     }
 
@@ -323,7 +313,6 @@ public class DualityManager : MonoBehaviour
             if (tex != null)
             {
                 target.SetTexture(targetProp, tex);
-                Debug.Log($"Copied {sourceProp} texture to {targetProp}");
 
                 // Also copy texture offset and scale if applicable
                 if (source.HasProperty(sourceProp))
@@ -506,16 +495,13 @@ public class DualityManager : MonoBehaviour
             if (obj == null) continue;
 
             float dissolve = isLightGroup ? shadowValue : 1f - shadowValue;
-            // Debug line to help troubleshoot
-            Debug.Log($"Object: {obj.name}, isLightGroup: {isLightGroup}, dissolve value: {dissolve}");
-
             // Update materials
             Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
             foreach (Renderer renderer in renderers)
             {
                 if (!instanceMaterials.ContainsKey(renderer))
                 {
-                    Debug.LogWarning($"No instance materials for {renderer.gameObject.name}");
+                  
                     continue;
                 }
 
@@ -525,17 +511,11 @@ public class DualityManager : MonoBehaviour
                     if (mat.HasProperty(DISSOLVE_AMOUNT))
                     {
                         mat.SetFloat(DISSOLVE_AMOUNT, dissolve);
-                        Debug.Log($"Successfully set {DISSOLVE_AMOUNT}={dissolve} for {renderer.gameObject.name}");
-                    }
-                    else
-                    {
-                        Debug.LogError($"Material {mat.name} does not have property {DISSOLVE_AMOUNT}");
                     }
                 }
             }
         }
     }
-
     private void OnDestroy()
     {
         // Restore original materials to prevent memory leaks
