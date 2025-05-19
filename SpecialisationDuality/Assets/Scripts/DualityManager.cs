@@ -57,7 +57,7 @@ public class DualityManager : MonoBehaviour
 
     private void Start()
     {
-        // Make sure we have a reference to the dissolve shader
+        // reference to the dissolve shader
         if (dissolveShader == null)
         {
             dissolveShader = Shader.Find("Custom/URP_DissolveEffect");
@@ -198,8 +198,6 @@ public class DualityManager : MonoBehaviour
                 originalMaterials[renderer] = originalMats;
                 instanceMaterials[renderer] = instanceMats;
 
-                // Keep original materials active
-                // renderer.materials remains unchanged here
             }
         }
     }
