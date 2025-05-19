@@ -21,9 +21,12 @@ public class DualityManager : MonoBehaviour
     public Volume lightPostFX;
     public Volume shadowPostFX;
 
-    [Header("Lighting (Optional)")]
+    [Header("Lighting")]
     public GameObject lightSun;
     public GameObject shadowSun;
+    // Light lists for smooth transitions
+    public List<Light> lightModeLights;
+    public List<Light> shadowModeLights;
 
     [Header("Dissolve Settings")]
     public Shader dissolveShader;  // Reference to the URP_DissolveEffect shader
@@ -33,11 +36,15 @@ public class DualityManager : MonoBehaviour
     public bool preserveOriginalColors = true;
 
     private bool isInShadow = false;
+    private bool isTransitioning = false;
     private Coroutine transitionRoutine;
 
     // Store original materials for restoration
     private Dictionary<Renderer, Material[]> originalMaterials = new Dictionary<Renderer, Material[]>();
     private Dictionary<Renderer, Material[]> instanceMaterials = new Dictionary<Renderer, Material[]>();
+
+    // Store original light intensities
+    private Dictionary<Light, float> originalLightIntensities = new Dictionary<Light, float>();
 
     // Material property names - Updated for URP
     private static readonly string DISSOLVE_AMOUNT = "_Dissolve";
@@ -62,12 +69,44 @@ public class DualityManager : MonoBehaviour
             }
         }
 
-        // Setup materials
-        SetupMaterialsForObjects(lightModeObjects, true);
-        SetupMaterialsForObjects(shadowModeObjects, false);
+        // Cache original materials but don't replace them yet
+        CacheMaterialsForObjects(lightModeObjects);
+        CacheMaterialsForObjects(shadowModeObjects);
+
+        // Cache original light intensities
+        CacheLightIntensities();
 
         // Initial visibility
         SetInitialVisibility();
+    }
+
+    private void CacheLightIntensities()
+    {
+        // Store original light intensities for light mode lights
+        if (lightModeLights != null)
+        {
+            foreach (Light light in lightModeLights)
+            {
+                if (light != null && !originalLightIntensities.ContainsKey(light))
+                {
+                    originalLightIntensities[light] = light.intensity;
+                }
+            }
+        }
+
+        // Store original light intensities for shadow mode lights
+        if (shadowModeLights != null)
+        {
+            foreach (Light light in shadowModeLights)
+            {
+                if (light != null && !originalLightIntensities.ContainsKey(light))
+                {
+                    originalLightIntensities[light] = light.intensity;
+                    // Initially set shadow lights to 0 intensity
+                    light.intensity = 0f;
+                }
+            }
+        }
     }
 
     private void SetInitialVisibility()
@@ -89,9 +128,39 @@ public class DualityManager : MonoBehaviour
         if (shadowPostFX != null) shadowPostFX.enabled = false;
         if (lightSun != null) lightSun.SetActive(true);
         if (shadowSun != null) shadowSun.SetActive(false);
+
+        // Set initial light intensities
+        SetLightIntensities(1.0f, 0.0f);
     }
 
-    private void SetupMaterialsForObjects(List<GameObject> objects, bool isLightGroup)
+    private void SetLightIntensities(float lightModeIntensityFactor, float shadowModeIntensityFactor)
+    {
+        // Apply intensity factors to light mode lights
+        if (lightModeLights != null)
+        {
+            foreach (Light light in lightModeLights)
+            {
+                if (light != null && originalLightIntensities.ContainsKey(light))
+                {
+                    light.intensity = originalLightIntensities[light] * lightModeIntensityFactor;
+                }
+            }
+        }
+
+        // Apply intensity factors to shadow mode lights
+        if (shadowModeLights != null)
+        {
+            foreach (Light light in shadowModeLights)
+            {
+                if (light != null && originalLightIntensities.ContainsKey(light))
+                {
+                    light.intensity = originalLightIntensities[light] * shadowModeIntensityFactor;
+                }
+            }
+        }
+    }
+
+    private void CacheMaterialsForObjects(List<GameObject> objects)
     {
         foreach (GameObject obj in objects)
         {
@@ -105,9 +174,9 @@ public class DualityManager : MonoBehaviour
 
                 // Store original materials
                 Material[] originalMats = renderer.sharedMaterials;
-                Material[] instanceMats = new Material[originalMats.Length];
 
-                // Create instances of each material
+                // Create but don't apply dissolve materials yet
+                Material[] instanceMats = new Material[originalMats.Length];
                 for (int i = 0; i < originalMats.Length; i++)
                 {
                     // Create a new material with our dissolve shader
@@ -126,71 +195,101 @@ public class DualityManager : MonoBehaviour
                     instanceMats[i] = instanceMat;
                 }
 
-                // Store references
+                // Only store references, don't apply materials yet
                 originalMaterials[renderer] = originalMats;
                 instanceMaterials[renderer] = instanceMats;
 
-                // Apply instance materials
-                renderer.materials = instanceMats;
+                // Keep original materials active
+                // renderer.materials remains unchanged here
             }
         }
     }
 
-    // Helper method to copy relevant properties from original material - Updated for URP
+    // Enhanced property copying method for URP
     private void CopyMaterialProperties(Material source, Material target)
     {
-        // Handle main texture and color - accounting for both Built-in and URP naming
-        if (source.HasProperty("_MainTex"))
-        {
-            Texture mainTex = source.GetTexture("_MainTex");
-            if (mainTex != null && target.HasProperty(BASE_MAP))
-                target.SetTexture(BASE_MAP, mainTex);
-        }
-        else if (source.HasProperty(BASE_MAP))
+        // First, log what we're doing for debugging
+        Debug.Log($"Copying properties from {source.name} to dissolve material");
+
+        // Better texture handling for URP
+        if (source.HasProperty(BASE_MAP))
         {
             Texture mainTex = source.GetTexture(BASE_MAP);
             if (mainTex != null && target.HasProperty(BASE_MAP))
+            {
                 target.SetTexture(BASE_MAP, mainTex);
+                Debug.Log($"Copied Base Map texture from {source.name}");
+
+                // Copy texture tiling and offset
+                Vector2 offset = source.GetTextureOffset(BASE_MAP);
+                Vector2 scale = source.GetTextureScale(BASE_MAP);
+                target.SetTextureOffset(BASE_MAP, offset);
+                target.SetTextureScale(BASE_MAP, scale);
+            }
+        }
+        else if (source.HasProperty("_MainTex"))
+        {
+            Texture mainTex = source.GetTexture("_MainTex");
+            if (mainTex != null && target.HasProperty(BASE_MAP))
+            {
+                target.SetTexture(BASE_MAP, mainTex);
+                Debug.Log($"Copied Main Texture from {source.name}");
+
+                // Copy texture tiling and offset
+                Vector2 offset = source.GetTextureOffset("_MainTex");
+                Vector2 scale = source.GetTextureScale("_MainTex");
+                target.SetTextureOffset(BASE_MAP, offset);
+                target.SetTextureScale(BASE_MAP, scale);
+            }
         }
 
-        // Handle color
-        if (source.HasProperty("_Color"))
-        {
-            Color color = source.GetColor("_Color");
-            if (target.HasProperty(BASE_COLOR))
-                target.SetColor(BASE_COLOR, color);
-        }
-        else if (source.HasProperty(BASE_COLOR))
+        // Better color handling for URP
+        if (source.HasProperty(BASE_COLOR))
         {
             Color color = source.GetColor(BASE_COLOR);
             if (target.HasProperty(BASE_COLOR))
+            {
                 target.SetColor(BASE_COLOR, color);
+                Debug.Log($"Copied Base Color: {color} from {source.name}");
+            }
+        }
+        else if (source.HasProperty("_Color"))
+        {
+            Color color = source.GetColor("_Color");
+            if (target.HasProperty(BASE_COLOR))
+            {
+                target.SetColor(BASE_COLOR, color);
+                Debug.Log($"Copied Color: {color} from {source.name}");
+            }
         }
 
-        // Copy metallic and smoothness properties
-        CopyFloatProperty(source, target, "_Metallic", "_Metallic");
-        CopyFloatProperty(source, target, "_Glossiness", "_Smoothness");
-        CopyFloatProperty(source, target, "_Smoothness", "_Smoothness");
+        // Copy material rendering mode and properties
+        CopyRenderMode(source, target);
 
         // Copy normal map if available
         CopyTextureProperty(source, target, "_BumpMap", "_BumpMap");
         CopyTextureProperty(source, target, "_NormalMap", "_BumpMap");
 
-        // Copy texture tiling and offset
-        if (source.HasProperty("_MainTex") && target.HasProperty(BASE_MAP))
-        {
-            Vector2 offset = source.GetTextureOffset("_MainTex");
-            Vector2 scale = source.GetTextureScale("_MainTex");
-            target.SetTextureOffset(BASE_MAP, offset);
-            target.SetTextureScale(BASE_MAP, scale);
-        }
-        else if (source.HasProperty(BASE_MAP) && target.HasProperty(BASE_MAP))
-        {
-            Vector2 offset = source.GetTextureOffset(BASE_MAP);
-            Vector2 scale = source.GetTextureScale(BASE_MAP);
-            target.SetTextureOffset(BASE_MAP, offset);
-            target.SetTextureScale(BASE_MAP, scale);
-        }
+        // Copy emission map and color if available
+        CopyTextureProperty(source, target, "_EmissionMap", "_EmissionMap");
+        CopyColorProperty(source, target, "_EmissionColor", "_EmissionColor");
+
+        // Copy metallic and smoothness properties
+        CopyFloatProperty(source, target, "_Metallic", "_Metallic");
+        CopyFloatProperty(source, target, "_Glossiness", "_Smoothness");
+        CopyFloatProperty(source, target, "_Smoothness", "_Smoothness");
+        CopyFloatProperty(source, target, "_GlossMapScale", "_Smoothness");
+
+        // Copy additional standard shader properties that might affect appearance
+        CopyFloatProperty(source, target, "_SpecularHighlights", "_SpecularHighlights");
+        CopyFloatProperty(source, target, "_GlossyReflections", "_EnvironmentReflections");
+        CopyFloatProperty(source, target, "_BumpScale", "_BumpScale");
+        CopyFloatProperty(source, target, "_OcclusionStrength", "_OcclusionStrength");
+        CopyTextureProperty(source, target, "_OcclusionMap", "_OcclusionMap");
+
+        // Alpha settings
+        CopyFloatProperty(source, target, "_Mode", "_Mode");
+        CopyFloatProperty(source, target, "_Cutoff", "_Cutoff");
     }
 
     // Helper to copy a float property between materials
@@ -198,7 +297,20 @@ public class DualityManager : MonoBehaviour
     {
         if (source.HasProperty(sourceProp) && target.HasProperty(targetProp))
         {
-            target.SetFloat(targetProp, source.GetFloat(sourceProp));
+            float value = source.GetFloat(sourceProp);
+            target.SetFloat(targetProp, value);
+            Debug.Log($"Copied {sourceProp}: {value} to {targetProp}");
+        }
+    }
+
+    // Helper to copy a color property between materials
+    private void CopyColorProperty(Material source, Material target, string sourceProp, string targetProp)
+    {
+        if (source.HasProperty(sourceProp) && target.HasProperty(targetProp))
+        {
+            Color value = source.GetColor(sourceProp);
+            target.SetColor(targetProp, value);
+            Debug.Log($"Copied {sourceProp} color to {targetProp}");
         }
     }
 
@@ -209,21 +321,81 @@ public class DualityManager : MonoBehaviour
         {
             Texture tex = source.GetTexture(sourceProp);
             if (tex != null)
+            {
                 target.SetTexture(targetProp, tex);
+                Debug.Log($"Copied {sourceProp} texture to {targetProp}");
+
+                // Also copy texture offset and scale if applicable
+                if (source.HasProperty(sourceProp))
+                {
+                    Vector2 offset = source.GetTextureOffset(sourceProp);
+                    Vector2 scale = source.GetTextureScale(sourceProp);
+                    target.SetTextureOffset(targetProp, offset);
+                    target.SetTextureScale(targetProp, scale);
+                }
+            }
         }
+    }
+
+    // Helper to copy rendering mode
+    private void CopyRenderMode(Material source, Material target)
+    {
+        // Try to match the rendering mode (transparent, cutout, etc.)
+        if (source.HasProperty("_SrcBlend") && target.HasProperty("_SrcBlend"))
+        {
+            target.SetFloat("_SrcBlend", source.GetFloat("_SrcBlend"));
+        }
+
+        if (source.HasProperty("_DstBlend") && target.HasProperty("_DstBlend"))
+        {
+            target.SetFloat("_DstBlend", source.GetFloat("_DstBlend"));
+        }
+
+        if (source.HasProperty("_ZWrite") && target.HasProperty("_ZWrite"))
+        {
+            target.SetFloat("_ZWrite", source.GetFloat("_ZWrite"));
+        }
+
+        // Copy surface type and blend mode for URP
+        if (source.HasProperty("_Surface") && target.HasProperty("_Surface"))
+        {
+            target.SetFloat("_Surface", source.GetFloat("_Surface"));
+        }
+
+        if (source.HasProperty("_Blend") && target.HasProperty("_Blend"))
+        {
+            target.SetFloat("_Blend", source.GetFloat("_Blend"));
+        }
+
+        // Set the render queue to match the original material
+        target.renderQueue = source.renderQueue;
+
+        // Copy keywords that might affect rendering
+        string[] keywords = source.shaderKeywords;
+        foreach (string keyword in keywords)
+        {
+            target.EnableKeyword(keyword);
+        }
+
+        // Copy render type
+        target.SetOverrideTag("RenderType", source.GetTag("RenderType", false, ""));
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown(toggleKey))
+        if (Input.GetKeyDown(toggleKey) && !isTransitioning)
         {
-            if (transitionRoutine == null)
-                transitionRoutine = StartCoroutine(Transition());
+            transitionRoutine = StartCoroutine(Transition());
         }
     }
 
     private IEnumerator Transition()
     {
+        isTransitioning = true;
+
+        // Apply dissolve materials when starting transition
+        ApplyDissolveMaterials();
+
         // Activate all objects
         SetAllObjectsActive(true);
 
@@ -246,6 +418,11 @@ public class DualityManager : MonoBehaviour
             ApplyDissolveToObjects(lightModeObjects, shadowMode, true);
             ApplyDissolveToObjects(shadowModeObjects, shadowMode, false);
 
+            // Smoothly transition light intensities
+            float lightFactor = isInShadow ? t : 1 - t;
+            float shadowFactor = isInShadow ? 1 - t : t;
+            SetLightIntensities(lightFactor, shadowFactor);
+
             yield return null;
         }
 
@@ -261,7 +438,38 @@ public class DualityManager : MonoBehaviour
         if (lightSun != null) lightSun.SetActive(!isInShadow);
         if (shadowSun != null) shadowSun.SetActive(isInShadow);
 
+        // Set final light states
+        SetLightIntensities(!isInShadow ? 1.0f : 0.0f, isInShadow ? 1.0f : 0.0f);
+
+        // Restore original materials when transition is complete
+        RestoreOriginalMaterials();
+
+        isTransitioning = false;
         transitionRoutine = null;
+    }
+
+    private void ApplyDissolveMaterials()
+    {
+        foreach (var kvp in instanceMaterials)
+        {
+            Renderer renderer = kvp.Key;
+            if (renderer != null)
+            {
+                renderer.materials = kvp.Value;
+            }
+        }
+    }
+
+    private void RestoreOriginalMaterials()
+    {
+        foreach (var kvp in originalMaterials)
+        {
+            Renderer renderer = kvp.Key;
+            if (renderer != null)
+            {
+                renderer.materials = kvp.Value;
+            }
+        }
     }
 
     private void SetAllObjectsActive(bool active)
@@ -298,12 +506,18 @@ public class DualityManager : MonoBehaviour
             if (obj == null) continue;
 
             float dissolve = isLightGroup ? shadowValue : 1f - shadowValue;
+            // Debug line to help troubleshoot
+            Debug.Log($"Object: {obj.name}, isLightGroup: {isLightGroup}, dissolve value: {dissolve}");
 
             // Update materials
             Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
             foreach (Renderer renderer in renderers)
             {
-                if (!instanceMaterials.ContainsKey(renderer)) continue;
+                if (!instanceMaterials.ContainsKey(renderer))
+                {
+                    Debug.LogWarning($"No instance materials for {renderer.gameObject.name}");
+                    continue;
+                }
 
                 Material[] materials = instanceMaterials[renderer];
                 foreach (Material mat in materials)
@@ -311,6 +525,11 @@ public class DualityManager : MonoBehaviour
                     if (mat.HasProperty(DISSOLVE_AMOUNT))
                     {
                         mat.SetFloat(DISSOLVE_AMOUNT, dissolve);
+                        Debug.Log($"Successfully set {DISSOLVE_AMOUNT}={dissolve} for {renderer.gameObject.name}");
+                    }
+                    else
+                    {
+                        Debug.LogError($"Material {mat.name} does not have property {DISSOLVE_AMOUNT}");
                     }
                 }
             }
@@ -320,12 +539,6 @@ public class DualityManager : MonoBehaviour
     private void OnDestroy()
     {
         // Restore original materials to prevent memory leaks
-        foreach (var kvp in originalMaterials)
-        {
-            if (kvp.Key != null)
-            {
-                kvp.Key.materials = kvp.Value;
-            }
-        }
+        RestoreOriginalMaterials();
     }
 }
