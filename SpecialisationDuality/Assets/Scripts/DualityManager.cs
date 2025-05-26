@@ -55,6 +55,7 @@ public class DualityManager : MonoBehaviour
     private static readonly string BASE_MAP = "_BaseMap";         // URP equivalent of _MainTex
     private static readonly string BASE_COLOR = "_BaseColor";     // URP equivalent of _Color
 
+
     private void Start()
     {
         // reference to the dissolve shader
@@ -144,11 +145,7 @@ public class DualityManager : MonoBehaviour
 
             foreach (Collider collider in colliders)
             {
-                // Don't disable trigger colliders as they might be used for other detection
-                if (!collider.isTrigger)
-                {
-                    collider.enabled = visible;
-                }
+                collider.enabled = true;
             }
         }
     }
@@ -460,10 +457,7 @@ public class DualityManager : MonoBehaviour
 
                 foreach (Collider collider in colliders)
                 {
-                    if (!collider.isTrigger)
-                    {
-                        collider.enabled = true;
-                    }
+                    collider.enabled = true;
                 }
             }
         }

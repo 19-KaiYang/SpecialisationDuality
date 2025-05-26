@@ -105,7 +105,7 @@ public class ConeLightReveal : MonoBehaviour
         if (state.isTransitioning)
             return;
 
-        // Determine if the object should be revealed or hidden
+        // Check both reveal and hide cases independently
         bool reveal = ShouldRevealObject(obj, inShadow);
         bool hide = ShouldHideObjectInCone(obj, inShadow);
 
@@ -130,6 +130,7 @@ public class ConeLightReveal : MonoBehaviour
             StartDissolveTransition(obj, state);
         }
     }
+
 
     private void OnTriggerExit(Collider other)
     {
@@ -190,7 +191,10 @@ public class ConeLightReveal : MonoBehaviour
     private void SetupObjectForDissolve(GameObject obj)
     {
         Renderer rend = obj.GetComponent<Renderer>();
-        if (rend == null) return;
+        if (rend != null)
+        {
+            rend.enabled = true; 
+        }
 
         DissolveState state = new DissolveState();
         state.renderer = rend;

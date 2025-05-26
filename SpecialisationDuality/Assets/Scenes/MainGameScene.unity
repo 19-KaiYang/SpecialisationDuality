@@ -756,8 +756,8 @@ GameObject:
   - component: {fileID: 824717577}
   - component: {fileID: 824717576}
   - component: {fileID: 824717580}
-  m_Layer: 0
-  m_Name: Shadow1
+  m_Layer: 6
+  m_Name: Shadow
   m_TagString: ShadowOnly
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -874,7 +874,7 @@ Rigidbody:
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 126
   m_CollisionDetection: 0
 --- !u!1 &942048604
 GameObject:
@@ -1823,6 +1823,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 03c8eb80db1020d44b1da4aad964e92a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  dissolveSpeed: 2
+  showDebugGizmos: 1
 --- !u!65 &1813510570
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1878,7 +1880,7 @@ Light:
   serializedVersion: 10
   m_Type: 0
   m_Shape: 0
-  m_Color: {r: 0.9716981, g: 0.01375042, b: 0.01375042, a: 1}
+  m_Color: {r: 0.11728305, g: 0.972549, b: 0.015686259, a: 1}
   m_Intensity: 200
   m_Range: 35
   m_SpotAngle: 33.331036
@@ -2424,7 +2426,7 @@ GameObject:
   - component: {fileID: 2114445643}
   - component: {fileID: 2114445642}
   - component: {fileID: 2114445646}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Light
   m_TagString: LightOnly
   m_Icon: {fileID: 0}
@@ -2542,7 +2544,7 @@ Rigidbody:
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 126
   m_CollisionDetection: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
