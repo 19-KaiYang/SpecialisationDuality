@@ -63,6 +63,7 @@ public class DualityManager : MonoBehaviour
             dissolveShader = Shader.Find("Custom/URP_DissolveEffect");
             if (dissolveShader == null)
             {
+                Debug.LogError("Dissolve shader not found! Make sure to assign it in the inspector.");
                 enabled = false;
                 return;
             }
@@ -110,17 +111,8 @@ public class DualityManager : MonoBehaviour
 
     private void SetInitialVisibility()
     {
-        foreach (GameObject obj in lightModeObjects)
-        {
-            if (obj == null) continue;
-            obj.SetActive(true);
-        }
-
-        foreach (GameObject obj in shadowModeObjects)
-        {
-            if (obj == null) continue;
-            obj.SetActive(false);
-        }
+        SetObjectsVisibilityState(lightModeObjects, true);
+        SetObjectsVisibilityState(shadowModeObjects, false);
 
         // Set initial state for post-processing and lighting
         if (lightPostFX != null) lightPostFX.enabled = true;
@@ -130,6 +122,35 @@ public class DualityManager : MonoBehaviour
 
         // Set initial light intensities
         SetLightIntensities(1.0f, 0.0f);
+    }
+
+    private void SetObjectsVisibilityState(List<GameObject> objects, bool visible)
+    {
+        foreach (GameObject obj in objects)
+        {
+            if (obj == null) continue;
+
+            // Keep GameObject active for cone detection
+            obj.SetActive(true);
+
+            // Control visibility and collision through components
+            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+            Collider[] colliders = obj.GetComponentsInChildren<Collider>();
+
+            foreach (Renderer renderer in renderers)
+            {
+                renderer.enabled = visible;
+            }
+
+            foreach (Collider collider in colliders)
+            {
+                // Don't disable trigger colliders as they might be used for other detection
+                if (!collider.isTrigger)
+                {
+                    collider.enabled = visible;
+                }
+            }
+        }
     }
 
     private void SetLightIntensities(float lightModeIntensityFactor, float shadowModeIntensityFactor)
@@ -197,13 +218,12 @@ public class DualityManager : MonoBehaviour
                 // Only store references, don't apply materials yet
                 originalMaterials[renderer] = originalMats;
                 instanceMaterials[renderer] = instanceMats;
-
             }
         }
     }
 
     // Enhanced property copying method for URP
-    private void CopyMaterialProperties(Material source, Material target)
+    public void CopyMaterialProperties(Material source, Material target)
     {
         // Better texture handling for URP
         if (source.HasProperty(BASE_MAP))
@@ -212,8 +232,6 @@ public class DualityManager : MonoBehaviour
             if (mainTex != null && target.HasProperty(BASE_MAP))
             {
                 target.SetTexture(BASE_MAP, mainTex);
-
-                // Copy texture tiling and offset
                 Vector2 offset = source.GetTextureOffset(BASE_MAP);
                 Vector2 scale = source.GetTextureScale(BASE_MAP);
                 target.SetTextureOffset(BASE_MAP, offset);
@@ -226,8 +244,6 @@ public class DualityManager : MonoBehaviour
             if (mainTex != null && target.HasProperty(BASE_MAP))
             {
                 target.SetTexture(BASE_MAP, mainTex);
-
-                // Copy texture tiling and offset
                 Vector2 offset = source.GetTextureOffset("_MainTex");
                 Vector2 scale = source.GetTextureScale("_MainTex");
                 target.SetTextureOffset(BASE_MAP, offset);
@@ -256,33 +272,24 @@ public class DualityManager : MonoBehaviour
         // Copy material rendering mode and properties
         CopyRenderMode(source, target);
 
-        // Copy normal map if available
+        // Copy additional properties
         CopyTextureProperty(source, target, "_BumpMap", "_BumpMap");
         CopyTextureProperty(source, target, "_NormalMap", "_BumpMap");
-
-        // Copy emission map and color if available
         CopyTextureProperty(source, target, "_EmissionMap", "_EmissionMap");
         CopyColorProperty(source, target, "_EmissionColor", "_EmissionColor");
-
-        // Copy metallic and smoothness properties
         CopyFloatProperty(source, target, "_Metallic", "_Metallic");
         CopyFloatProperty(source, target, "_Glossiness", "_Smoothness");
         CopyFloatProperty(source, target, "_Smoothness", "_Smoothness");
         CopyFloatProperty(source, target, "_GlossMapScale", "_Smoothness");
-
-        // Copy additional standard shader properties that might affect appearance
         CopyFloatProperty(source, target, "_SpecularHighlights", "_SpecularHighlights");
         CopyFloatProperty(source, target, "_GlossyReflections", "_EnvironmentReflections");
         CopyFloatProperty(source, target, "_BumpScale", "_BumpScale");
         CopyFloatProperty(source, target, "_OcclusionStrength", "_OcclusionStrength");
         CopyTextureProperty(source, target, "_OcclusionMap", "_OcclusionMap");
-
-        // Alpha settings
         CopyFloatProperty(source, target, "_Mode", "_Mode");
         CopyFloatProperty(source, target, "_Cutoff", "_Cutoff");
     }
 
-    // Helper to copy a float property between materials
     private void CopyFloatProperty(Material source, Material target, string sourceProp, string targetProp)
     {
         if (source.HasProperty(sourceProp) && target.HasProperty(targetProp))
@@ -292,7 +299,6 @@ public class DualityManager : MonoBehaviour
         }
     }
 
-    // Helper to copy a color property between materials
     private void CopyColorProperty(Material source, Material target, string sourceProp, string targetProp)
     {
         if (source.HasProperty(sourceProp) && target.HasProperty(targetProp))
@@ -302,7 +308,6 @@ public class DualityManager : MonoBehaviour
         }
     }
 
-    // Helper to copy a texture property between materials
     private void CopyTextureProperty(Material source, Material target, string sourceProp, string targetProp)
     {
         if (source.HasProperty(sourceProp) && target.HasProperty(targetProp))
@@ -311,8 +316,6 @@ public class DualityManager : MonoBehaviour
             if (tex != null)
             {
                 target.SetTexture(targetProp, tex);
-
-                // Also copy texture offset and scale if applicable
                 if (source.HasProperty(sourceProp))
                 {
                     Vector2 offset = source.GetTextureOffset(sourceProp);
@@ -324,10 +327,8 @@ public class DualityManager : MonoBehaviour
         }
     }
 
-    // Helper to copy rendering mode
     private void CopyRenderMode(Material source, Material target)
     {
-        // Try to match the rendering mode (transparent, cutout, etc.)
         if (source.HasProperty("_SrcBlend") && target.HasProperty("_SrcBlend"))
         {
             target.SetFloat("_SrcBlend", source.GetFloat("_SrcBlend"));
@@ -343,7 +344,6 @@ public class DualityManager : MonoBehaviour
             target.SetFloat("_ZWrite", source.GetFloat("_ZWrite"));
         }
 
-        // Copy surface type and blend mode for URP
         if (source.HasProperty("_Surface") && target.HasProperty("_Surface"))
         {
             target.SetFloat("_Surface", source.GetFloat("_Surface"));
@@ -354,17 +354,14 @@ public class DualityManager : MonoBehaviour
             target.SetFloat("_Blend", source.GetFloat("_Blend"));
         }
 
-        // Set the render queue to match the original material
         target.renderQueue = source.renderQueue;
 
-        // Copy keywords that might affect rendering
         string[] keywords = source.shaderKeywords;
         foreach (string keyword in keywords)
         {
             target.EnableKeyword(keyword);
         }
 
-        // Copy render type
         target.SetOverrideTag("RenderType", source.GetTag("RenderType", false, ""));
     }
 
@@ -383,8 +380,8 @@ public class DualityManager : MonoBehaviour
         // Apply dissolve materials when starting transition
         ApplyDissolveMaterials();
 
-        // Activate all objects
-        SetAllObjectsActive(true);
+        // Activate all objects and their components for transition
+        SetAllObjectsForTransition(true);
 
         float time = 0f;
         float startValue = isInShadow ? 1f : 0f;
@@ -416,8 +413,9 @@ public class DualityManager : MonoBehaviour
         shadowMode = targetValue;
         isInShadow = !isInShadow;
 
-        // Final state - deactivate fully dissolved objects for performance
-        DeactivateDissolvedObjects();
+        // Final state - set proper visibility
+        SetObjectsVisibilityState(lightModeObjects, !isInShadow);
+        SetObjectsVisibilityState(shadowModeObjects, isInShadow);
 
         // Post FX and lighting
         if (lightPostFX != null) lightPostFX.enabled = !isInShadow;
@@ -433,6 +431,42 @@ public class DualityManager : MonoBehaviour
 
         isTransitioning = false;
         transitionRoutine = null;
+    }
+
+    private void SetAllObjectsForTransition(bool enableComponents)
+    {
+        SetObjectsTransitionState(lightModeObjects, enableComponents);
+        SetObjectsTransitionState(shadowModeObjects, enableComponents);
+    }
+
+    private void SetObjectsTransitionState(List<GameObject> objects, bool enableComponents)
+    {
+        foreach (GameObject obj in objects)
+        {
+            if (obj == null) continue;
+
+            obj.SetActive(true);
+
+            if (enableComponents)
+            {
+                // Enable all renderers and colliders for transition
+                Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+                Collider[] colliders = obj.GetComponentsInChildren<Collider>();
+
+                foreach (Renderer renderer in renderers)
+                {
+                    renderer.enabled = true;
+                }
+
+                foreach (Collider collider in colliders)
+                {
+                    if (!collider.isTrigger)
+                    {
+                        collider.enabled = true;
+                    }
+                }
+            }
+        }
     }
 
     private void ApplyDissolveMaterials()
@@ -459,33 +493,6 @@ public class DualityManager : MonoBehaviour
         }
     }
 
-    private void SetAllObjectsActive(bool active)
-    {
-        foreach (GameObject obj in lightModeObjects)
-        {
-            if (obj != null) obj.SetActive(active);
-        }
-
-        foreach (GameObject obj in shadowModeObjects)
-        {
-            if (obj != null) obj.SetActive(active);
-        }
-    }
-
-    private void DeactivateDissolvedObjects()
-    {
-        // Deactivate objects that are fully dissolved
-        foreach (GameObject obj in lightModeObjects)
-        {
-            if (obj != null) obj.SetActive(!isInShadow);
-        }
-
-        foreach (GameObject obj in shadowModeObjects)
-        {
-            if (obj != null) obj.SetActive(isInShadow);
-        }
-    }
-
     private void ApplyDissolveToObjects(List<GameObject> objects, float shadowValue, bool isLightGroup)
     {
         foreach (GameObject obj in objects)
@@ -499,7 +506,6 @@ public class DualityManager : MonoBehaviour
             {
                 if (!instanceMaterials.ContainsKey(renderer))
                 {
-                  
                     continue;
                 }
 
@@ -514,9 +520,15 @@ public class DualityManager : MonoBehaviour
             }
         }
     }
+
     private void OnDestroy()
     {
         // Restore original materials to prevent memory leaks
         RestoreOriginalMaterials();
+    }
+
+    public bool IsInShadowMode()
+    {
+        return isInShadow;
     }
 }
