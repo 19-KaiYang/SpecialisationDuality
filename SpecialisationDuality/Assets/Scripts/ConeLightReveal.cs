@@ -87,24 +87,48 @@ public class ConeLightReveal : MonoBehaviour
     private void OnTriggerStay(Collider other)
     {
         GameObject obj = other.gameObject;
-        if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
+
+        // Only process objects with the right tags
+        if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly"))
+            return;
 
         objectsInTrigger.Add(obj);
 
         bool inShadow = dualityManager.IsInShadowMode();
-        bool reveal = ShouldRevealObject(obj, inShadow);
-        bool hide = ShouldHideObjectInCone(obj, inShadow);
-        bool desiredVisible = reveal;
 
-        if (!objectStates.ContainsKey(obj)) SetupObjectForDissolve(obj);
+        if (!objectStates.ContainsKey(obj))
+        {
+            SetupObjectForDissolve(obj);
+        }
 
         DissolveState state = objectStates[obj];
-        if (state.isTransitioning) return;
-        if (state.shouldBeVisible == desiredVisible && state.hasBeenAffected) return;
+        if (state.isTransitioning)
+            return;
 
-        state.shouldBeVisible = desiredVisible;
-        state.hasBeenAffected = true;
-        StartDissolveTransition(obj, state);
+        // Determine if the object should be revealed or hidden
+        bool reveal = ShouldRevealObject(obj, inShadow);
+        bool hide = ShouldHideObjectInCone(obj, inShadow);
+
+        bool shouldChangeVisibility = false;
+        bool targetVisible = state.shouldBeVisible;
+
+        if (reveal)
+        {
+            targetVisible = true;
+            shouldChangeVisibility = state.shouldBeVisible != true || !state.hasBeenAffected;
+        }
+        else if (hide)
+        {
+            targetVisible = false;
+            shouldChangeVisibility = state.shouldBeVisible != false || !state.hasBeenAffected;
+        }
+
+        if (shouldChangeVisibility)
+        {
+            state.shouldBeVisible = targetVisible;
+            state.hasBeenAffected = true;
+            StartDissolveTransition(obj, state);
+        }
     }
 
     private void OnTriggerExit(Collider other)
