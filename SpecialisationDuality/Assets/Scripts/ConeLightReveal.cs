@@ -15,6 +15,7 @@ public class ConeLightReveal : MonoBehaviour
     private Dictionary<GameObject, Coroutine> activeCoroutines = new Dictionary<GameObject, Coroutine>();
 
     private HashSet<GameObject> objectsInTrigger = new HashSet<GameObject>();
+    private bool lastKnownShadowMode = false; // Track mode changes
 
     private class DissolveState
     {
@@ -38,6 +39,8 @@ public class ConeLightReveal : MonoBehaviour
             return;
         }
 
+        lastKnownShadowMode = dualityManager.IsInShadowMode();
+
         Collider triggerCollider = GetComponent<Collider>();
         if (triggerCollider == null || !triggerCollider.isTrigger)
         {
@@ -49,8 +52,56 @@ public class ConeLightReveal : MonoBehaviour
 
     private void Update()
     {
+        // Check if mode has changed
+        bool currentShadowMode = dualityManager.IsInShadowMode();
+        if (currentShadowMode != lastKnownShadowMode)
+        {
+            lastKnownShadowMode = currentShadowMode;
+            HandleModeSwitch();
+        }
+
         CheckForObjectsToRestore();
     }
+
+    private void HandleModeSwitch()
+    {
+        bool inShadow = dualityManager.IsInShadowMode();
+
+        foreach (var kvp in objectStates)
+        {
+            GameObject obj = kvp.Key;
+            DissolveState state = kvp.Value;
+
+            if (state.isTransitioning) continue;
+
+            // These 2 booleans determine visibility
+            bool reveal = ShouldRevealObject(obj, inShadow);
+            bool hide = ShouldHideObjectInCone(obj, inShadow);
+            bool targetVisible = state.shouldBeVisible;
+
+            if (reveal)
+            {
+                targetVisible = true;
+            }
+            else if (hide)
+            {
+                targetVisible = false;
+            }
+            else
+            {
+                // Neither revealed nor hidden, restore to normal mode visibility
+                targetVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
+            }
+
+            // Only trigger dissolve if visibility changes
+            if (state.shouldBeVisible != targetVisible)
+            {
+                state.shouldBeVisible = targetVisible;
+                StartDissolveTransition(obj, state);
+            }
+        }
+    }
+
 
     private void CheckForObjectsToRestore()
     {
@@ -131,7 +182,6 @@ public class ConeLightReveal : MonoBehaviour
         }
     }
 
-
     private void OnTriggerExit(Collider other)
     {
         GameObject obj = other.gameObject;
@@ -169,7 +219,8 @@ public class ConeLightReveal : MonoBehaviour
         bool inShadow = dualityManager.IsInShadowMode();
         bool normalVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
 
-        bool targetVisible = ShouldRevealObject(obj, inShadow) ? false : normalVisible;
+        // When light leaves, object should return to its normal state for the current mode
+        bool targetVisible = normalVisible;
 
         if (state.shouldBeVisible != targetVisible)
         {
@@ -191,16 +242,18 @@ public class ConeLightReveal : MonoBehaviour
     private void SetupObjectForDissolve(GameObject obj)
     {
         Renderer rend = obj.GetComponent<Renderer>();
-        if (rend != null)
-        {
-            rend.enabled = true; 
-        }
+        // DON'T force enable the renderer here - let the dissolve shader handle visibility
+
+        bool inShadow = dualityManager.IsInShadowMode();
+
+        // Determine initial visibility based on current mode
+        bool initiallyVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
 
         DissolveState state = new DissolveState();
         state.renderer = rend;
         state.originalMaterials = rend.sharedMaterials;
-        state.shouldBeVisible = true;
-        state.currentDissolve = 0f;
+        state.shouldBeVisible = initiallyVisible;
+        state.currentDissolve = initiallyVisible ? 0f : 1f; // Set dissolve based on visibility
         state.isTransitioning = false;
         state.hasBeenAffected = false;
 
@@ -225,6 +278,10 @@ public class ConeLightReveal : MonoBehaviour
     private IEnumerator DissolveTransition(GameObject obj, DissolveState state)
     {
         state.isTransitioning = true;
+
+        // Ensure renderer is enabled for dissolve effect to work
+        if (state.renderer != null)
+            state.renderer.enabled = true;
 
         Material[] dissolveMats = new Material[state.originalMaterials.Length];
         for (int i = 0; i < state.originalMaterials.Length; i++)
@@ -256,21 +313,48 @@ public class ConeLightReveal : MonoBehaviour
 
             foreach (Material mat in state.materials)
             {
-                if (mat.HasProperty("_Dissolve"))
+                if (mat != null && mat.HasProperty("_Dissolve"))
                     mat.SetFloat("_Dissolve", dissolveVal);
             }
             yield return null;
         }
 
-        if (state.shouldBeVisible && state.originalMaterials != null)
+        // Always update the current dissolve value
+        state.currentDissolve = target;
+
+        // Handle final state based on whether object should be visible
+        if (state.shouldBeVisible)
         {
-            state.renderer.materials = state.originalMaterials;
+            // Object should be visible - restore original materials
+            if (state.originalMaterials != null && state.renderer != null)
+            {
+                state.renderer.materials = state.originalMaterials;
+                // Keep renderer enabled since object is visible
+            }
+
+            // Clean up dissolve materials
+            if (state.materials != null)
+            {
+                foreach (Material mat in state.materials)
+                {
+                    if (mat != null) DestroyImmediate(mat);
+                }
+                state.materials = null;
+            }
+        }
+        else
+        {
+            // Object should be hidden - disable renderer only after dissolve is complete
+            if (state.renderer != null)
+            {
+                state.renderer.enabled = false;
+            }
         }
 
+        // Only reset hasBeenAffected if object is no longer in trigger
         if (!objectsInTrigger.Contains(obj))
             state.hasBeenAffected = false;
 
-        state.currentDissolve = target;
         state.isTransitioning = false;
         activeCoroutines.Remove(obj);
     }
