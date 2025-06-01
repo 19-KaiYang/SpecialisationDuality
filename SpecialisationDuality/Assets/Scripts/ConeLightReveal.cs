@@ -128,8 +128,9 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        GameObject obj = other.gameObject;
+        GameObject obj = other.transform.root.gameObject;
         if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
+
 
         objectsInTrigger.Add(obj);
         ProcessObjectInTrigger(obj);
@@ -137,11 +138,9 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
-        GameObject obj = other.gameObject;
+        GameObject obj = other.transform.root.gameObject;
+        if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
 
-        // Only process objects with the right tags
-        if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly"))
-            return;
 
         objectsInTrigger.Add(obj);
 
@@ -184,11 +183,13 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        GameObject obj = other.gameObject;
+        GameObject obj = other.transform.root.gameObject;
+
         if (!objectsInTrigger.Contains(obj)) return;
 
         objectsInTrigger.Remove(obj);
     }
+
 
     private void ProcessObjectInTrigger(GameObject obj)
     {
@@ -348,6 +349,17 @@ public class ConeLightReveal : MonoBehaviour
             if (state.renderer != null)
             {
                 state.renderer.enabled = false;
+            }
+        }
+
+        if (state.originalColliders != null)
+        {
+            foreach (var col in state.originalColliders)
+            {
+                if (col != null)
+                {
+                    col.enabled = state.shouldBeVisible;
+                }
             }
         }
 
