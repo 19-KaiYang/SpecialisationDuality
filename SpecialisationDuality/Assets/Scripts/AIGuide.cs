@@ -2,20 +2,38 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ConeLightReveal : MonoBehaviour
+public class AIGuide : MonoBehaviour
 {
+    [Header("Circle Area Settings")]
+    public float circleRadius = 5f;
+    public LayerMask detectionLayers = -1; 
+
+    [Header("AI Movement")]
+    public Transform[] waypoints;
+    public float moveSpeed = 3f;
+    public float waitTimeAtWaypoint = 1f;
+    public bool loopWaypoints = true;
+    public bool reverseOnEnd = false;
+
     [Header("Dissolve Settings")]
     public float dissolveSpeed = 2f;
 
     [Header("Debug")]
     public bool showDebugGizmos = true;
+    public Color gizmoColor = Color.cyan;
 
     private DualityManager dualityManager;
     private Dictionary<GameObject, DissolveState> objectStates = new Dictionary<GameObject, DissolveState>();
     private Dictionary<GameObject, Coroutine> activeCoroutines = new Dictionary<GameObject, Coroutine>();
 
-    private HashSet<GameObject> objectsInTrigger = new HashSet<GameObject>();
-    private bool lastKnownShadowMode = false; // Track mode changes
+    private HashSet<GameObject> objectsInArea = new HashSet<GameObject>();
+    private bool lastKnownShadowMode = false;
+
+    // AI Movement variables
+    private int currentWaypointIndex = 0;
+    private bool isWaiting = false;
+    private bool movingForward = true;
+    private Coroutine movementCoroutine;
 
     private class DissolveState
     {
@@ -41,12 +59,18 @@ public class ConeLightReveal : MonoBehaviour
 
         lastKnownShadowMode = dualityManager.IsInShadowMode();
 
-        Collider triggerCollider = GetComponent<Collider>();
-        if (triggerCollider == null || !triggerCollider.isTrigger)
+        // Start AI movement if waypoints are set
+        if (waypoints != null && waypoints.Length > 0)
         {
-            Debug.LogError("ConeLightReveal needs a Collider component set as trigger!");
-            enabled = false;
-            return;
+            // Position at first waypoint
+            if (waypoints[0] != null)
+                transform.position = waypoints[0].position;
+
+            movementCoroutine = StartCoroutine(AIMovementLoop());
+        }
+        else
+        {
+            Debug.LogWarning("No waypoints set for AIGuide AI movement!");
         }
     }
 
@@ -60,7 +84,142 @@ public class ConeLightReveal : MonoBehaviour
             HandleModeSwitch();
         }
 
+        // Check for objects in circular area
+        CheckObjectsInArea();
         CheckForObjectsToRestore();
+    }
+
+    private IEnumerator AIMovementLoop()
+    {
+        while (true)
+        {
+            if (waypoints == null || waypoints.Length == 0)
+                yield break;
+
+            // Move to current waypoint
+            Transform targetWaypoint = waypoints[currentWaypointIndex];
+            if (targetWaypoint != null)
+            {
+                yield return StartCoroutine(MoveToWaypoint(targetWaypoint.position));
+
+                // Wait at waypoint
+                if (waitTimeAtWaypoint > 0)
+                {
+                    isWaiting = true;
+                    yield return new WaitForSeconds(waitTimeAtWaypoint);
+                    isWaiting = false;
+                }
+            }
+
+            // Calculate next waypoint index
+            GetNextWaypointIndex();
+        }
+    }
+
+    private IEnumerator MoveToWaypoint(Vector3 targetPosition)
+    {
+        Vector3 startPosition = transform.position;
+        float distance = Vector3.Distance(startPosition, targetPosition);
+        float travelTime = distance / moveSpeed;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < travelTime)
+        {
+            elapsedTime += Time.deltaTime;
+            float t = elapsedTime / travelTime;
+            transform.position = Vector3.Lerp(startPosition, targetPosition, t);
+            yield return null;
+        }
+
+        transform.position = targetPosition;
+    }
+
+    private void GetNextWaypointIndex()
+    {
+        if (waypoints.Length <= 1) return;
+
+        if (loopWaypoints)
+        {
+            currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
+        }
+        else if (reverseOnEnd)
+        {
+            if (movingForward)
+            {
+                currentWaypointIndex++;
+                if (currentWaypointIndex >= waypoints.Length - 1)
+                {
+                    currentWaypointIndex = waypoints.Length - 1;
+                    movingForward = false;
+                }
+            }
+            else
+            {
+                currentWaypointIndex--;
+                if (currentWaypointIndex <= 0)
+                {
+                    currentWaypointIndex = 0;
+                    movingForward = true;
+                }
+            }
+        }
+        else
+        {
+            currentWaypointIndex++;
+            if (currentWaypointIndex >= waypoints.Length)
+            {
+                currentWaypointIndex = waypoints.Length - 1;
+                // Stop movement
+                if (movementCoroutine != null)
+                {
+                    StopCoroutine(movementCoroutine);
+                    movementCoroutine = null;
+                }
+            }
+        }
+    }
+
+    private void CheckObjectsInArea()
+    {
+        // Get all colliders in the circular area
+        Collider[] collidersInRange = Physics.OverlapSphere(transform.position, circleRadius, detectionLayers);
+
+        HashSet<GameObject> currentFrameObjects = new HashSet<GameObject>();
+
+        foreach (Collider col in collidersInRange)
+        {
+            GameObject obj = col.transform.root.gameObject;
+            if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) continue;
+
+            currentFrameObjects.Add(obj);
+
+            if (!objectsInArea.Contains(obj))
+            {
+               
+                objectsInArea.Add(obj);
+                ProcessObjectInArea(obj);
+            }
+            else
+            {
+               
+                ProcessObjectStayInArea(obj);
+            }
+        }
+
+        // Check for objects that left the area
+        List<GameObject> objectsToRemove = new List<GameObject>();
+        foreach (GameObject obj in objectsInArea)
+        {
+            if (!currentFrameObjects.Contains(obj))
+            {
+                objectsToRemove.Add(obj);
+            }
+        }
+
+        foreach (GameObject obj in objectsToRemove)
+        {
+            objectsInArea.Remove(obj);
+        }
     }
 
     private void HandleModeSwitch()
@@ -74,9 +233,8 @@ public class ConeLightReveal : MonoBehaviour
 
             if (state.isTransitioning) continue;
 
-            // These 2 booleans determine visibility
             bool reveal = ShouldRevealObject(obj, inShadow);
-            bool hide = ShouldHideObjectInCone(obj, inShadow);
+            bool hide = ShouldHideObjectInArea(obj, inShadow);
             bool targetVisible = state.shouldBeVisible;
 
             if (reveal)
@@ -89,11 +247,10 @@ public class ConeLightReveal : MonoBehaviour
             }
             else
             {
-               
+              
                 targetVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
             }
 
-            // Only trigger dissolve if visibility changes
             if (state.shouldBeVisible != targetVisible)
             {
                 state.shouldBeVisible = targetVisible;
@@ -101,7 +258,6 @@ public class ConeLightReveal : MonoBehaviour
             }
         }
     }
-
 
     private void CheckForObjectsToRestore()
     {
@@ -112,7 +268,7 @@ public class ConeLightReveal : MonoBehaviour
             GameObject obj = kvp.Key;
             DissolveState state = kvp.Value;
 
-            if (obj == null || state.isTransitioning || objectsInTrigger.Contains(obj))
+            if (obj == null || state.isTransitioning || objectsInArea.Contains(obj))
                 continue;
 
             if (!state.hasBeenAffected) continue;
@@ -122,28 +278,31 @@ public class ConeLightReveal : MonoBehaviour
 
         foreach (GameObject obj in toRestore)
         {
-            RestoreObjectFromTrigger(obj);
+            RestoreObjectFromArea(obj);
         }
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void ProcessObjectInArea(GameObject obj)
     {
-        GameObject obj = other.transform.root.gameObject;
-        if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
+        bool inShadow = dualityManager.IsInShadowMode();
+        if (!objectStates.ContainsKey(obj)) SetupObjectForDissolve(obj);
 
+        DissolveState state = objectStates[obj];
+        if (state.hasBeenAffected || state.isTransitioning) return;
 
-        objectsInTrigger.Add(obj);
-        ProcessObjectInTrigger(obj);
+        bool reveal = ShouldRevealObject(obj, inShadow);
+        bool hide = ShouldHideObjectInArea(obj, inShadow);
+
+        if (reveal || hide)
+        {
+            state.shouldBeVisible = reveal;
+            state.hasBeenAffected = true;
+            StartDissolveTransition(obj, state);
+        }
     }
 
-    private void OnTriggerStay(Collider other)
+    private void ProcessObjectStayInArea(GameObject obj)
     {
-        GameObject obj = other.transform.root.gameObject;
-        if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
-
-
-        objectsInTrigger.Add(obj);
-
         bool inShadow = dualityManager.IsInShadowMode();
 
         if (!objectStates.ContainsKey(obj))
@@ -155,9 +314,8 @@ public class ConeLightReveal : MonoBehaviour
         if (state.isTransitioning)
             return;
 
-        // Check both reveal and hide cases independently
         bool reveal = ShouldRevealObject(obj, inShadow);
-        bool hide = ShouldHideObjectInCone(obj, inShadow);
+        bool hide = ShouldHideObjectInArea(obj, inShadow);
 
         bool shouldChangeVisibility = false;
         bool targetVisible = state.shouldBeVisible;
@@ -181,36 +339,7 @@ public class ConeLightReveal : MonoBehaviour
         }
     }
 
-    private void OnTriggerExit(Collider other)
-    {
-        GameObject obj = other.transform.root.gameObject;
-
-        if (!objectsInTrigger.Contains(obj)) return;
-
-        objectsInTrigger.Remove(obj);
-    }
-
-
-    private void ProcessObjectInTrigger(GameObject obj)
-    {
-        bool inShadow = dualityManager.IsInShadowMode();
-        if (!objectStates.ContainsKey(obj)) SetupObjectForDissolve(obj);
-
-        DissolveState state = objectStates[obj];
-        if (state.hasBeenAffected || state.isTransitioning) return;
-
-        bool reveal = ShouldRevealObject(obj, inShadow);
-        bool hide = ShouldHideObjectInCone(obj, inShadow);
-
-        if (reveal || hide)
-        {
-            state.shouldBeVisible = reveal;
-            state.hasBeenAffected = true;
-            StartDissolveTransition(obj, state);
-        }
-    }
-
-    private void RestoreObjectFromTrigger(GameObject obj)
+    private void RestoreObjectFromArea(GameObject obj)
     {
         if (!objectStates.ContainsKey(obj)) return;
 
@@ -220,7 +349,6 @@ public class ConeLightReveal : MonoBehaviour
         bool inShadow = dualityManager.IsInShadowMode();
         bool normalVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
 
-        // When light leaves, object should return to its normal state for the current mode
         bool targetVisible = normalVisible;
 
         if (state.shouldBeVisible != targetVisible)
@@ -235,7 +363,7 @@ public class ConeLightReveal : MonoBehaviour
         return (!inShadow && obj.CompareTag("ShadowOnly")) || (inShadow && obj.CompareTag("LightOnly"));
     }
 
-    private bool ShouldHideObjectInCone(GameObject obj, bool inShadow)
+    private bool ShouldHideObjectInArea(GameObject obj, bool inShadow)
     {
         return (!inShadow && obj.CompareTag("LightOnly")) || (inShadow && obj.CompareTag("ShadowOnly"));
     }
@@ -243,18 +371,15 @@ public class ConeLightReveal : MonoBehaviour
     private void SetupObjectForDissolve(GameObject obj)
     {
         Renderer rend = obj.GetComponent<Renderer>();
-       
-
         bool inShadow = dualityManager.IsInShadowMode();
 
-        // Determine initial visibility based on current mode
         bool initiallyVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
 
         DissolveState state = new DissolveState();
         state.renderer = rend;
         state.originalMaterials = rend.sharedMaterials;
         state.shouldBeVisible = initiallyVisible;
-        state.currentDissolve = initiallyVisible ? 0f : 1f; 
+        state.currentDissolve = initiallyVisible ? 0f : 1f;
         state.isTransitioning = false;
         state.hasBeenAffected = false;
 
@@ -280,7 +405,6 @@ public class ConeLightReveal : MonoBehaviour
     {
         state.isTransitioning = true;
 
-        // Ensure renderer is enabled for dissolve effect to work
         if (state.renderer != null)
             state.renderer.enabled = true;
 
@@ -320,20 +444,15 @@ public class ConeLightReveal : MonoBehaviour
             yield return null;
         }
 
-        // Always update the current dissolve value
         state.currentDissolve = target;
 
-        // Handle final state based on whether object should be visible
         if (state.shouldBeVisible)
         {
-            // Object should be visible - restore original materials
             if (state.originalMaterials != null && state.renderer != null)
             {
                 state.renderer.materials = state.originalMaterials;
-                
             }
 
-            // Clean up dissolve materials
             if (state.materials != null)
             {
                 foreach (Material mat in state.materials)
@@ -345,7 +464,6 @@ public class ConeLightReveal : MonoBehaviour
         }
         else
         {
-            // Object should be hidden - disable renderer only after dissolve is complete
             if (state.renderer != null)
             {
                 state.renderer.enabled = false;
@@ -363,8 +481,7 @@ public class ConeLightReveal : MonoBehaviour
             }
         }
 
-        // Only reset hasBeenAffected if object is no longer in trigger
-        if (!objectsInTrigger.Contains(obj))
+        if (!objectsInArea.Contains(obj))
             state.hasBeenAffected = false;
 
         state.isTransitioning = false;
@@ -375,20 +492,84 @@ public class ConeLightReveal : MonoBehaviour
     {
         if (!showDebugGizmos) return;
 
-        Collider col = GetComponent<Collider>();
-        if (col is BoxCollider box)
+        Gizmos.color = gizmoColor;
+        Gizmos.DrawWireSphere(transform.position, circleRadius);
+
+      
+        if (waypoints != null && waypoints.Length > 1)
         {
             Gizmos.color = Color.yellow;
-            Gizmos.matrix = transform.localToWorldMatrix;
-            Gizmos.DrawWireCube(box.center, box.size);
+            for (int i = 0; i < waypoints.Length - 1; i++)
+            {
+                if (waypoints[i] != null && waypoints[i + 1] != null)
+                {
+                    Gizmos.DrawLine(waypoints[i].position, waypoints[i + 1].position);
+                }
+            }
+
+          
+            if (loopWaypoints && waypoints[waypoints.Length - 1] != null && waypoints[0] != null)
+            {
+                Gizmos.DrawLine(waypoints[waypoints.Length - 1].position, waypoints[0].position);
+            }
+
+            // Draw waypoints
+            Gizmos.color = Color.red;
+            for (int i = 0; i < waypoints.Length; i++)
+            {
+                if (waypoints[i] != null)
+                {
+                    Gizmos.DrawWireCube(waypoints[i].position, Vector3.one * 0.5f);
+                }
+            }
+
+          
+            if (currentWaypointIndex < waypoints.Length && waypoints[currentWaypointIndex] != null)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireCube(waypoints[currentWaypointIndex].position, Vector3.one * 0.8f);
+            }
         }
     }
 
     private void OnDestroy()
     {
+        if (movementCoroutine != null)
+        {
+            StopCoroutine(movementCoroutine);
+        }
+
         foreach (var coroutine in activeCoroutines.Values)
         {
             if (coroutine != null) StopCoroutine(coroutine);
+        }
+    }
+
+    // Public methods for external control
+    public void SetMoveSpeed(float newSpeed)
+    {
+        moveSpeed = Mathf.Max(0.1f, newSpeed);
+    }
+
+    public void SetCircleRadius(float newRadius)
+    {
+        circleRadius = Mathf.Max(0.1f, newRadius);
+    }
+
+    public void PauseMovement()
+    {
+        if (movementCoroutine != null)
+        {
+            StopCoroutine(movementCoroutine);
+            movementCoroutine = null;
+        }
+    }
+
+    public void ResumeMovement()
+    {
+        if (movementCoroutine == null && waypoints != null && waypoints.Length > 0)
+        {
+            movementCoroutine = StartCoroutine(AIMovementLoop());
         }
     }
 }

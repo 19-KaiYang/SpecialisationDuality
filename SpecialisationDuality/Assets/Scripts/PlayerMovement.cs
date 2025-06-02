@@ -53,7 +53,7 @@ public class PlayerMovement : MonoBehaviour
         rb.freezeRotation = true;
         currentCameraY = cameraTransform.localPosition.y;
 
-        // Lock cursor for better FPS experience
+        
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -83,7 +83,7 @@ public class PlayerMovement : MonoBehaviour
         Vector3 move = (transform.right * input.x + transform.forward * input.y) * (isCrouching ? crouchSpeed : walkSpeed);
 
         Vector3 velocity = move;
-        velocity.y = rb.velocity.y; // retain vertical speed
+        velocity.y = rb.velocity.y; 
         rb.velocity = velocity;
     }
 
@@ -91,7 +91,7 @@ public class PlayerMovement : MonoBehaviour
     {
         Vector2 mouse = lookAction.ReadValue<Vector2>() * lookSensitivity;
 
-        // Smooth camera rotation to reduce shake during grappling
+       
         targetXRotation -= mouse.y;
         targetXRotation = Mathf.Clamp(targetXRotation, -90f, 90f);
 
@@ -106,7 +106,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (jumpAction.WasPressedThisFrame() && IsGrounded())
         {
-            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z); // reset Y
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z); 
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         }
     }

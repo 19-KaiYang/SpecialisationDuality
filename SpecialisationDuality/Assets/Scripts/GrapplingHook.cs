@@ -121,7 +121,7 @@ public class GrapplingHook : MonoBehaviour
             lineRenderer.SetPosition(1, grapplePoint);
         }
 
-        // No artificial forces - just keep existing momentum
+        
     }
 
     void StopGrapple()
@@ -258,7 +258,6 @@ public class GrapplingHook : MonoBehaviour
         }
     }
 
-    // Public getters for other scripts
     public bool IsGrappling() => isGrappling;
     public Vector3 GetGrapplePoint() => grapplePoint;
     public float GetRopeLength() => ropeLength;
