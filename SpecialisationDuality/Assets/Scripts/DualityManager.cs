@@ -145,7 +145,10 @@ public class DualityManager : MonoBehaviour
 
             foreach (Collider collider in colliders)
             {
-                collider.enabled = true;
+                if (!collider.isTrigger)
+                {
+                    collider.enabled = visible;
+                }
             }
         }
     }

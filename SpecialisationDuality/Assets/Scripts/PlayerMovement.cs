@@ -3,41 +3,43 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+[RequireComponent(typeof(Rigidbody))]
 public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement Settings")]
     public float walkSpeed = 5f;
     public float crouchSpeed = 2.5f;
-    public float jumpHeight = 2f;
-    public float gravity = -9.81f;
-    public float lookSensitivity = 0.2f;
+    public float jumpForce = 5f;
+    public float lookSensitivity = 2f;
+    public float cameraSmoothing = 10f;
 
     [Header("Crouch Settings")]
     public float standHeight = 2f;
     public float crouchHeight = 1f;
     public float crouchTransitionSpeed = 8f;
-    private float currentHeight;
-    private float currentCameraY;
-
 
     [Header("Camera")]
     public Transform cameraTransform;
 
-    private CharacterController controller;
+    [HideInInspector] public bool isGrappling = false;
+
+    private Rigidbody rb;
+    private CapsuleCollider capsule;
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction lookAction;
     private InputAction jumpAction;
     private InputAction crouchAction;
 
-    private Vector3 velocity;
-    private bool isGrounded;
     private bool isCrouching;
+    private float currentCameraY;
     private float xRotation;
+    private float targetXRotation;
 
     void Awake()
     {
-        controller = GetComponent<CharacterController>();
+        rb = GetComponent<Rigidbody>();
+        capsule = GetComponent<CapsuleCollider>();
         playerInput = GetComponent<PlayerInput>();
 
         moveAction = playerInput.actions["Move"];
@@ -48,33 +50,53 @@ public class PlayerMovement : MonoBehaviour
 
     void Start()
     {
-        currentHeight = standHeight;
+        rb.freezeRotation = true;
         currentCameraY = cameraTransform.localPosition.y;
-    }
 
+        // Lock cursor for better FPS experience
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
 
     void Update()
     {
         Look();
-        Move();
-        HandleJump();
         HandleCrouch();
-        ApplyGravity();
+
+        if (!isGrappling)
+        {
+            HandleJump();
+        }
+    }
+
+    void FixedUpdate()
+    {
+        if (!isGrappling)
+        {
+            Move();
+        }
     }
 
     void Move()
     {
         Vector2 input = moveAction.ReadValue<Vector2>();
-        Vector3 move = transform.right * input.x + transform.forward * input.y;
-        float speed = isCrouching ? crouchSpeed : walkSpeed;
-        controller.Move(move * speed * Time.deltaTime);
+        Vector3 move = (transform.right * input.x + transform.forward * input.y) * (isCrouching ? crouchSpeed : walkSpeed);
+
+        Vector3 velocity = move;
+        velocity.y = rb.velocity.y; // retain vertical speed
+        rb.velocity = velocity;
     }
 
     void Look()
     {
         Vector2 mouse = lookAction.ReadValue<Vector2>() * lookSensitivity;
-        xRotation -= mouse.y;
-        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+
+        // Smooth camera rotation to reduce shake during grappling
+        targetXRotation -= mouse.y;
+        targetXRotation = Mathf.Clamp(targetXRotation, -90f, 90f);
+
+        float smoothing = isGrappling ? cameraSmoothing * 2f : cameraSmoothing;
+        xRotation = Mathf.Lerp(xRotation, targetXRotation, Time.deltaTime * smoothing);
 
         cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouse.x);
@@ -82,38 +104,28 @@ public class PlayerMovement : MonoBehaviour
 
     void HandleJump()
     {
-        isGrounded = controller.isGrounded;
-
-        if (isGrounded && velocity.y < 0)
-            velocity.y = -2f;
-
-        if (jumpAction.WasPressedThisFrame() && isGrounded && !isCrouching)
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        if (jumpAction.WasPressedThisFrame() && IsGrounded())
+        {
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z); // reset Y
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        }
     }
 
     void HandleCrouch()
     {
-        bool isCrouchHeld = crouchAction.IsPressed();
-        isCrouching = isCrouchHeld;
-
+        isCrouching = crouchAction.IsPressed();
         float targetHeight = isCrouching ? crouchHeight : standHeight;
-        float targetCameraY = isCrouching ? crouchHeight / 2 : standHeight / 2;
+        float targetCameraY = isCrouching ? crouchHeight / 2f : standHeight / 2f;
 
-        // Smoothly change the character height
-        currentHeight = Mathf.Lerp(currentHeight, targetHeight, Time.deltaTime * crouchTransitionSpeed);
-        controller.height = currentHeight;
+        capsule.height = Mathf.Lerp(capsule.height, targetHeight, Time.deltaTime * crouchTransitionSpeed);
 
-        // Smoothly adjust camera Y position
         Vector3 camPos = cameraTransform.localPosition;
         currentCameraY = Mathf.Lerp(currentCameraY, targetCameraY, Time.deltaTime * crouchTransitionSpeed);
         cameraTransform.localPosition = new Vector3(camPos.x, currentCameraY, camPos.z);
     }
 
-
-
-    void ApplyGravity()
+    public bool IsGrounded()
     {
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
+        return Physics.Raycast(transform.position, Vector3.down, (capsule.height / 2f) + 0.1f);
     }
 }
