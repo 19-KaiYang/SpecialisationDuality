@@ -6,7 +6,7 @@ public class AIGuide : MonoBehaviour
 {
     [Header("Circle Area Settings")]
     public float circleRadius = 5f;
-    public LayerMask detectionLayers = -1; 
+    public LayerMask detectionLayers = -1;
 
     [Header("AI Movement")]
     public Transform[] waypoints;
@@ -35,6 +35,9 @@ public class AIGuide : MonoBehaviour
     private bool movingForward = true;
     private Coroutine movementCoroutine;
 
+    // Track if the guide should be active in the current mode
+    private bool isActiveInCurrentMode = true;
+
     private class DissolveState
     {
         public bool shouldBeVisible;
@@ -59,8 +62,11 @@ public class AIGuide : MonoBehaviour
 
         lastKnownShadowMode = dualityManager.IsInShadowMode();
 
-        // Start AI movement if waypoints are set
-        if (waypoints != null && waypoints.Length > 0)
+        // Determine initial active state
+        UpdateActiveState();
+
+        // Start AI movement if waypoints are set and guide is active
+        if (waypoints != null && waypoints.Length > 0 && isActiveInCurrentMode)
         {
             // Position at first waypoint
             if (waypoints[0] != null)
@@ -68,7 +74,7 @@ public class AIGuide : MonoBehaviour
 
             movementCoroutine = StartCoroutine(AIMovementLoop());
         }
-        else
+        else if (waypoints == null || waypoints.Length == 0)
         {
             Debug.LogWarning("No waypoints set for AIGuide AI movement!");
         }
@@ -81,17 +87,62 @@ public class AIGuide : MonoBehaviour
         if (currentShadowMode != lastKnownShadowMode)
         {
             lastKnownShadowMode = currentShadowMode;
+            UpdateActiveState();
             HandleModeSwitch();
         }
+
+        // Only perform guide functions if active in current mode
+        if (!isActiveInCurrentMode)
+            return;
 
         // Check for objects in circular area
         CheckObjectsInArea();
         CheckForObjectsToRestore();
     }
 
+    private void UpdateActiveState()
+    {
+        bool inShadow = dualityManager.IsInShadowMode();
+        bool wasActive = isActiveInCurrentMode;
+
+        // Determine if guide should be active based on its tag and current mode
+        if (gameObject.CompareTag("ShadowOnly"))
+        {
+            isActiveInCurrentMode = inShadow;
+        }
+        else if (gameObject.CompareTag("LightOnly"))
+        {
+            isActiveInCurrentMode = !inShadow;
+        }
+        else
+        {
+            // If no specific tag, assume always active
+            isActiveInCurrentMode = true;
+        }
+
+        // Handle movement coroutine based on active state
+        if (isActiveInCurrentMode && !wasActive)
+        {
+            // Guide became active - start movement if waypoints exist
+            if (waypoints != null && waypoints.Length > 0 && movementCoroutine == null)
+            {
+                movementCoroutine = StartCoroutine(AIMovementLoop());
+            }
+        }
+        else if (!isActiveInCurrentMode && wasActive)
+        {
+            // Guide became inactive - stop movement
+            if (movementCoroutine != null)
+            {
+                StopCoroutine(movementCoroutine);
+                movementCoroutine = null;
+            }
+        }
+    }
+
     private IEnumerator AIMovementLoop()
     {
-        while (true)
+        while (isActiveInCurrentMode)
         {
             if (waypoints == null || waypoints.Length == 0)
                 yield break;
@@ -113,7 +164,13 @@ public class AIGuide : MonoBehaviour
 
             // Calculate next waypoint index
             GetNextWaypointIndex();
+
+            // Check if we should still be moving (in case mode changed during movement)
+            if (!isActiveInCurrentMode)
+                break;
         }
+
+        movementCoroutine = null;
     }
 
     private IEnumerator MoveToWaypoint(Vector3 targetPosition)
@@ -123,7 +180,7 @@ public class AIGuide : MonoBehaviour
         float travelTime = distance / moveSpeed;
         float elapsedTime = 0f;
 
-        while (elapsedTime < travelTime)
+        while (elapsedTime < travelTime && isActiveInCurrentMode)
         {
             elapsedTime += Time.deltaTime;
             float t = elapsedTime / travelTime;
@@ -131,7 +188,10 @@ public class AIGuide : MonoBehaviour
             yield return null;
         }
 
-        transform.position = targetPosition;
+        if (isActiveInCurrentMode)
+        {
+            transform.position = targetPosition;
+        }
     }
 
     private void GetNextWaypointIndex()
@@ -181,6 +241,10 @@ public class AIGuide : MonoBehaviour
 
     private void CheckObjectsInArea()
     {
+        // Only check if guide is active in current mode
+        if (!isActiveInCurrentMode)
+            return;
+
         // Get all colliders in the circular area
         Collider[] collidersInRange = Physics.OverlapSphere(transform.position, circleRadius, detectionLayers);
 
@@ -195,13 +259,11 @@ public class AIGuide : MonoBehaviour
 
             if (!objectsInArea.Contains(obj))
             {
-               
                 objectsInArea.Add(obj);
                 ProcessObjectInArea(obj);
             }
             else
             {
-               
                 ProcessObjectStayInArea(obj);
             }
         }
@@ -247,7 +309,6 @@ public class AIGuide : MonoBehaviour
             }
             else
             {
-              
                 targetVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
             }
 
@@ -257,10 +318,21 @@ public class AIGuide : MonoBehaviour
                 StartDissolveTransition(obj, state);
             }
         }
+
+        // Handle guide's own colliders (keeping the original logic for any remaining functionality)
+        BoxCollider[] guideColliders = GetComponentsInChildren<BoxCollider>();
+        foreach (var col in guideColliders)
+        {
+            col.enabled = isActiveInCurrentMode;
+        }
     }
 
     private void CheckForObjectsToRestore()
     {
+        // Only restore if guide is active in current mode
+        if (!isActiveInCurrentMode)
+            return;
+
         List<GameObject> toRestore = new List<GameObject>();
 
         foreach (var kvp in objectStates)
@@ -492,10 +564,12 @@ public class AIGuide : MonoBehaviour
     {
         if (!showDebugGizmos) return;
 
+        // Only draw gizmos if guide is active in current mode (or in editor when not playing)
+        if (Application.isPlaying && !isActiveInCurrentMode) return;
+
         Gizmos.color = gizmoColor;
         Gizmos.DrawWireSphere(transform.position, circleRadius);
 
-      
         if (waypoints != null && waypoints.Length > 1)
         {
             Gizmos.color = Color.yellow;
@@ -507,7 +581,6 @@ public class AIGuide : MonoBehaviour
                 }
             }
 
-          
             if (loopWaypoints && waypoints[waypoints.Length - 1] != null && waypoints[0] != null)
             {
                 Gizmos.DrawLine(waypoints[waypoints.Length - 1].position, waypoints[0].position);
@@ -523,7 +596,6 @@ public class AIGuide : MonoBehaviour
                 }
             }
 
-          
             if (currentWaypointIndex < waypoints.Length && waypoints[currentWaypointIndex] != null)
             {
                 Gizmos.color = Color.green;
@@ -567,7 +639,7 @@ public class AIGuide : MonoBehaviour
 
     public void ResumeMovement()
     {
-        if (movementCoroutine == null && waypoints != null && waypoints.Length > 0)
+        if (movementCoroutine == null && waypoints != null && waypoints.Length > 0 && isActiveInCurrentMode)
         {
             movementCoroutine = StartCoroutine(AIMovementLoop());
         }

@@ -4,8 +4,16 @@ using UnityEngine;
 
 public class ConeLightReveal : MonoBehaviour
 {
+    [Header("Light Control")]
+    public bool isLightActive = true; // Can be controlled by buttons
+
     [Header("Dissolve Settings")]
     public float dissolveSpeed = 2f;
+
+    [Header("Visual Feedback")]
+    public GameObject lightVisualEffect; // Optional: assign a light or particle effect
+    public Material activeMaterial; // Optional: material when light is on
+    public Material inactiveMaterial; // Optional: material when light is off
 
     [Header("Debug")]
     public bool showDebugGizmos = true;
@@ -15,7 +23,8 @@ public class ConeLightReveal : MonoBehaviour
     private Dictionary<GameObject, Coroutine> activeCoroutines = new Dictionary<GameObject, Coroutine>();
 
     private HashSet<GameObject> objectsInTrigger = new HashSet<GameObject>();
-    private bool lastKnownShadowMode = false; // Track mode changes
+    private bool lastKnownShadowMode = false;
+    private bool lastLightActiveState = true;
 
     private class DissolveState
     {
@@ -40,6 +49,7 @@ public class ConeLightReveal : MonoBehaviour
         }
 
         lastKnownShadowMode = dualityManager.IsInShadowMode();
+        lastLightActiveState = isLightActive;
 
         Collider triggerCollider = GetComponent<Collider>();
         if (triggerCollider == null || !triggerCollider.isTrigger)
@@ -48,6 +58,8 @@ public class ConeLightReveal : MonoBehaviour
             enabled = false;
             return;
         }
+
+        UpdateLightVisuals();
     }
 
     private void Update()
@@ -60,11 +72,96 @@ public class ConeLightReveal : MonoBehaviour
             HandleModeSwitch();
         }
 
+        // Check if light active state has changed
+        if (isLightActive != lastLightActiveState)
+        {
+            lastLightActiveState = isLightActive;
+            HandleLightToggle();
+            UpdateLightVisuals();
+        }
+
         CheckForObjectsToRestore();
+    }
+
+    public void ToggleLight()
+    {
+        isLightActive = !isLightActive;
+        Debug.Log($"Cone light {gameObject.name} toggled to: {(isLightActive ? "ON" : "OFF")}");
+    }
+
+    public void SetLightActive(bool active)
+    {
+        isLightActive = active;
+        Debug.Log($"Cone light {gameObject.name} set to: {(isLightActive ? "ON" : "OFF")}");
+    }
+
+    private void UpdateLightVisuals()
+    {
+        // Update visual feedback
+        if (lightVisualEffect != null)
+        {
+            Light lightComp = lightVisualEffect.GetComponent<Light>();
+            if (lightComp != null)
+            {
+                lightComp.enabled = isLightActive;
+            }
+        }
+
+        // Update material if specified
+        Renderer rend = GetComponent<Renderer>();
+        if (rend != null)
+        {
+            if (isLightActive && activeMaterial != null)
+            {
+                rend.material = activeMaterial;
+            }
+            else if (!isLightActive && inactiveMaterial != null)
+            {
+                rend.material = inactiveMaterial;
+            }
+        }
+    }
+
+    private void HandleLightToggle()
+    {
+        // When light is turned off, restore all affected objects to normal state
+        if (!isLightActive)
+        {
+            RestoreAllObjectsToNormal();
+        }
+        else
+        {
+            // When light is turned on, re-evaluate all objects in trigger
+            HandleModeSwitch();
+        }
+    }
+
+    private void RestoreAllObjectsToNormal()
+    {
+        bool inShadow = dualityManager.IsInShadowMode();
+
+        foreach (var kvp in objectStates)
+        {
+            GameObject obj = kvp.Key;
+            DissolveState state = kvp.Value;
+
+            if (obj == null || state.isTransitioning) continue;
+
+            // Return to normal visibility for current mode
+            bool normalVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
+
+            if (state.shouldBeVisible != normalVisible)
+            {
+                state.shouldBeVisible = normalVisible;
+                StartDissolveTransition(obj, state);
+            }
+        }
     }
 
     private void HandleModeSwitch()
     {
+        if (!isLightActive) return; // Don't process if light is off
+
         bool inShadow = dualityManager.IsInShadowMode();
 
         foreach (var kvp in objectStates)
@@ -74,7 +171,6 @@ public class ConeLightReveal : MonoBehaviour
 
             if (state.isTransitioning) continue;
 
-            // These 2 booleans determine visibility
             bool reveal = ShouldRevealObject(obj, inShadow);
             bool hide = ShouldHideObjectInCone(obj, inShadow);
             bool targetVisible = state.shouldBeVisible;
@@ -89,11 +185,9 @@ public class ConeLightReveal : MonoBehaviour
             }
             else
             {
-               
                 targetVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
             }
 
-            // Only trigger dissolve if visibility changes
             if (state.shouldBeVisible != targetVisible)
             {
                 state.shouldBeVisible = targetVisible;
@@ -101,7 +195,6 @@ public class ConeLightReveal : MonoBehaviour
             }
         }
     }
-
 
     private void CheckForObjectsToRestore()
     {
@@ -128,9 +221,10 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!isLightActive) return; // Don't process if light is off
+
         GameObject obj = other.transform.root.gameObject;
         if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
-
 
         objectsInTrigger.Add(obj);
         ProcessObjectInTrigger(obj);
@@ -138,9 +232,10 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
+        if (!isLightActive) return; // Don't process if light is off
+
         GameObject obj = other.transform.root.gameObject;
         if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
-
 
         objectsInTrigger.Add(obj);
 
@@ -152,10 +247,8 @@ public class ConeLightReveal : MonoBehaviour
         }
 
         DissolveState state = objectStates[obj];
-        if (state.isTransitioning)
-            return;
+        if (state.isTransitioning) return;
 
-        // Check both reveal and hide cases independently
         bool reveal = ShouldRevealObject(obj, inShadow);
         bool hide = ShouldHideObjectInCone(obj, inShadow);
 
@@ -190,7 +283,6 @@ public class ConeLightReveal : MonoBehaviour
         objectsInTrigger.Remove(obj);
     }
 
-
     private void ProcessObjectInTrigger(GameObject obj)
     {
         bool inShadow = dualityManager.IsInShadowMode();
@@ -220,7 +312,6 @@ public class ConeLightReveal : MonoBehaviour
         bool inShadow = dualityManager.IsInShadowMode();
         bool normalVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
 
-        // When light leaves, object should return to its normal state for the current mode
         bool targetVisible = normalVisible;
 
         if (state.shouldBeVisible != targetVisible)
@@ -243,18 +334,15 @@ public class ConeLightReveal : MonoBehaviour
     private void SetupObjectForDissolve(GameObject obj)
     {
         Renderer rend = obj.GetComponent<Renderer>();
-       
 
         bool inShadow = dualityManager.IsInShadowMode();
-
-        // Determine initial visibility based on current mode
         bool initiallyVisible = (obj.CompareTag("LightOnly") && !inShadow) || (obj.CompareTag("ShadowOnly") && inShadow);
 
         DissolveState state = new DissolveState();
         state.renderer = rend;
         state.originalMaterials = rend.sharedMaterials;
         state.shouldBeVisible = initiallyVisible;
-        state.currentDissolve = initiallyVisible ? 0f : 1f; 
+        state.currentDissolve = initiallyVisible ? 0f : 1f;
         state.isTransitioning = false;
         state.hasBeenAffected = false;
 
@@ -280,7 +368,6 @@ public class ConeLightReveal : MonoBehaviour
     {
         state.isTransitioning = true;
 
-        // Ensure renderer is enabled for dissolve effect to work
         if (state.renderer != null)
             state.renderer.enabled = true;
 
@@ -320,20 +407,15 @@ public class ConeLightReveal : MonoBehaviour
             yield return null;
         }
 
-        // Always update the current dissolve value
         state.currentDissolve = target;
 
-        // Handle final state based on whether object should be visible
         if (state.shouldBeVisible)
         {
-            // Object should be visible - restore original materials
             if (state.originalMaterials != null && state.renderer != null)
             {
                 state.renderer.materials = state.originalMaterials;
-                
             }
 
-            // Clean up dissolve materials
             if (state.materials != null)
             {
                 foreach (Material mat in state.materials)
@@ -345,7 +427,6 @@ public class ConeLightReveal : MonoBehaviour
         }
         else
         {
-            // Object should be hidden - disable renderer only after dissolve is complete
             if (state.renderer != null)
             {
                 state.renderer.enabled = false;
@@ -363,7 +444,6 @@ public class ConeLightReveal : MonoBehaviour
             }
         }
 
-        // Only reset hasBeenAffected if object is no longer in trigger
         if (!objectsInTrigger.Contains(obj))
             state.hasBeenAffected = false;
 
@@ -378,7 +458,7 @@ public class ConeLightReveal : MonoBehaviour
         Collider col = GetComponent<Collider>();
         if (col is BoxCollider box)
         {
-            Gizmos.color = Color.yellow;
+            Gizmos.color = isLightActive ? Color.yellow : Color.gray;
             Gizmos.matrix = transform.localToWorldMatrix;
             Gizmos.DrawWireCube(box.center, box.size);
         }

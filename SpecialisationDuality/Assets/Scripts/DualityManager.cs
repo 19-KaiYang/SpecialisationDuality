@@ -1,13 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal; 
+using UnityEngine.Rendering.Universal;
 
 public class DualityManager : MonoBehaviour
 {
     [Header("Toggle Key")]
     public KeyCode toggleKey = KeyCode.Q;
+
+    [Header("UI")]
+    public TMP_Text modeStatusText;
 
     [Header("Transition Settings")]
     [Range(0f, 1f)] public float shadowMode = 0f;
@@ -69,6 +73,13 @@ public class DualityManager : MonoBehaviour
                 return;
             }
         }
+
+
+        if (modeStatusText != null)
+        {
+            modeStatusText.text = isInShadow ? "Mode: Shadow" : "Mode: Light";
+        }
+
 
         // Cache original materials but don't replace them yet
         CacheMaterialsForObjects(lightModeObjects);
@@ -369,8 +380,27 @@ public class DualityManager : MonoBehaviour
     {
         if (Input.GetKeyDown(toggleKey) && !isTransitioning)
         {
+            TriggerDimensionSwitch();
+        }
+    }
+
+    // Public method to trigger transition from external scripts (like the button)
+    public void TriggerDimensionSwitch()
+    {
+        if (!isTransitioning)
+        {
+            if (transitionRoutine != null)
+            {
+                StopCoroutine(transitionRoutine);
+            }
             transitionRoutine = StartCoroutine(Transition());
         }
+    }
+
+    // Public method to check if currently transitioning
+    public bool IsTransitioning()
+    {
+        return isTransitioning;
     }
 
     private IEnumerator Transition()
@@ -428,6 +458,11 @@ public class DualityManager : MonoBehaviour
 
         // Restore original materials when transition is complete
         RestoreOriginalMaterials();
+
+        if (modeStatusText != null)
+        {
+            modeStatusText.text = isInShadow ? "Mode: Shadow" : "Mode: Light";
+        }
 
         isTransitioning = false;
         transitionRoutine = null;
@@ -528,6 +563,4 @@ public class DualityManager : MonoBehaviour
     {
         return isInShadow;
     }
-
-
 }
