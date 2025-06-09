@@ -11,9 +11,9 @@ public class ConeLightReveal : MonoBehaviour
     public float dissolveSpeed = 2f;
 
     [Header("Visual Feedback")]
-    public GameObject lightVisualEffect; // Optional: assign a light or particle effect
-    public Material activeMaterial; // Optional: material when light is on
-    public Material inactiveMaterial; // Optional: material when light is off
+    public GameObject lightVisualEffect; 
+    public Material activeMaterial; 
+    public Material inactiveMaterial; 
 
     [Header("Debug")]
     public bool showDebugGizmos = true;
@@ -160,7 +160,7 @@ public class ConeLightReveal : MonoBehaviour
 
     private void HandleModeSwitch()
     {
-        if (!isLightActive) return; // Don't process if light is off
+        if (!isLightActive) return; 
 
         bool inShadow = dualityManager.IsInShadowMode();
 
@@ -221,7 +221,7 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!isLightActive) return; // Don't process if light is off
+        if (!isLightActive) return;
 
         GameObject obj = other.transform.root.gameObject;
         if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
@@ -232,7 +232,7 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
-        if (!isLightActive) return; // Don't process if light is off
+        if (!isLightActive) return; 
 
         GameObject obj = other.transform.root.gameObject;
         if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;

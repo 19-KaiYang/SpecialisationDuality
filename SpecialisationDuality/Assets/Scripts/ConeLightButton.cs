@@ -76,7 +76,7 @@ public class ConeLightButton : MonoBehaviour
             }
             else
             {
-                ToggleAllLights(); // Fallback to toggle all
+                ToggleAllLights(); 
             }
         }
     }
@@ -84,7 +84,7 @@ public class ConeLightButton : MonoBehaviour
     {
         if (targetConeLights.Count == 0) return;
 
-        // Simply toggle each light individually
+        // toggle each light individually
         foreach (var light in targetConeLights)
         {
             light.ToggleLight();
@@ -118,7 +118,7 @@ public class ConeLightButton : MonoBehaviour
                 light.SetLightActive(true);
             }
         }
-        // If currentCycleState == 0 and only 1 light, it stays off (which we already did above)
+
 
         UpdateButtonVisuals();
         PlayButtonSound();
@@ -145,7 +145,7 @@ public class ConeLightButton : MonoBehaviour
 
         if (activeLights == 0)
         {
-            currentCycleState = targetConeLights.Count; // Will become 0 on next cycle
+            currentCycleState = targetConeLights.Count; 
         }
         else if (activeLights == 1)
         {
@@ -153,7 +153,7 @@ public class ConeLightButton : MonoBehaviour
         }
         else
         {
-            currentCycleState = 0; // All on state
+            currentCycleState = 0; 
         }
     }
 
@@ -201,7 +201,7 @@ public class ConeLightButton : MonoBehaviour
             if (buttonMixedMaterial != null)
                 buttonRenderer.material = buttonMixedMaterial;
             else if (buttonOnMaterial != null)
-                buttonRenderer.material = buttonOnMaterial; // Fallback
+                buttonRenderer.material = buttonOnMaterial; 
         }
     }
 

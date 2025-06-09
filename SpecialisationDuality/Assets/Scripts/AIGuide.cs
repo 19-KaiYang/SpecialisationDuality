@@ -319,7 +319,7 @@ public class AIGuide : MonoBehaviour
             }
         }
 
-        // Handle guide's own colliders (keeping the original logic for any remaining functionality)
+        // Handle guide's own colliders
         BoxCollider[] guideColliders = GetComponentsInChildren<BoxCollider>();
         foreach (var col in guideColliders)
         {
@@ -564,7 +564,6 @@ public class AIGuide : MonoBehaviour
     {
         if (!showDebugGizmos) return;
 
-        // Only draw gizmos if guide is active in current mode (or in editor when not playing)
         if (Application.isPlaying && !isActiveInCurrentMode) return;
 
         Gizmos.color = gizmoColor;
@@ -617,7 +616,6 @@ public class AIGuide : MonoBehaviour
         }
     }
 
-    // Public methods for external control
     public void SetMoveSpeed(float newSpeed)
     {
         moveSpeed = Mathf.Max(0.1f, newSpeed);
