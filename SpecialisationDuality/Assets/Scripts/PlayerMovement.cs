@@ -18,10 +18,15 @@ public class PlayerMovement : MonoBehaviour
     public float crouchHeight = 1f;
     public float crouchTransitionSpeed = 8f;
 
+    [Header("Launch Settings")]
+    public float launchCooldown = 0.5f;
+    public float groundFriction = 0.9f;
+
     [Header("Camera")]
     public Transform cameraTransform;
 
     [HideInInspector] public bool isGrappling = false;
+    [HideInInspector] public bool isLaunched = false;
 
     private Rigidbody rb;
     private CapsuleCollider capsule;
@@ -35,6 +40,7 @@ public class PlayerMovement : MonoBehaviour
     private float currentCameraY;
     private float xRotation;
     private float targetXRotation;
+    private float launchTimer;
 
     void Awake()
     {
@@ -63,7 +69,16 @@ public class PlayerMovement : MonoBehaviour
         Look();
         HandleCrouch();
 
-        if (!isGrappling)
+        if (isLaunched)
+        {
+            launchTimer -= Time.deltaTime;
+            if (launchTimer <= 0f)
+            {
+                isLaunched = false;
+            }
+        }
+
+        if (!isGrappling && !isLaunched)
         {
             HandleJump();
         }
@@ -73,7 +88,20 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!isGrappling)
         {
-            Move();
+            if (!isLaunched)
+            {
+                Move();
+            }
+            else
+            {
+                if (IsGrounded())
+                {
+                    Vector3 velocity = rb.velocity;
+                    velocity.x *= groundFriction;
+                    velocity.z *= groundFriction;
+                    rb.velocity = velocity;
+                }
+            }
         }
     }
 
@@ -82,11 +110,11 @@ public class PlayerMovement : MonoBehaviour
         Vector2 input = moveAction.ReadValue<Vector2>();
         Vector3 move = (transform.right * input.x + transform.forward * input.y) * (isCrouching ? crouchSpeed : walkSpeed);
 
+        // Always set the horizontal velocity based on input (even if input is zero)
         Vector3 velocity = move;
-        velocity.y = rb.velocity.y; 
+        velocity.y = rb.velocity.y;
         rb.velocity = velocity;
     }
-
     void Look()
     {
         Vector2 mouse = lookAction.ReadValue<Vector2>() * lookSensitivity;
@@ -123,7 +151,12 @@ public class PlayerMovement : MonoBehaviour
         currentCameraY = Mathf.Lerp(currentCameraY, targetCameraY, Time.deltaTime * crouchTransitionSpeed);
         cameraTransform.localPosition = new Vector3(camPos.x, currentCameraY, camPos.z);
     }
+    public void OnLaunched()
+    {
+        isLaunched = true;
+        launchTimer = launchCooldown;
 
+    }
     public bool IsGrounded()
     {
         return Physics.Raycast(transform.position, Vector3.down, (capsule.height / 2f) + 0.1f);
