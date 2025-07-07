@@ -84,37 +84,72 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+
     void FixedUpdate()
     {
-        if (!isGrappling)
+        if (isGrappling)
+            return;
+
+        if (isLaunched)
         {
-            if (!isLaunched)
+           
+            if (IsActuallyGrounded())
             {
-                Move();
+                isLaunched = false;
+               
+                Vector3 velocity = rb.velocity;
+                velocity.x *= groundFriction;
+                velocity.z *= groundFriction;
+                rb.velocity = velocity;
             }
-            else
-            {
-                if (IsGrounded())
-                {
-                    Vector3 velocity = rb.velocity;
-                    velocity.x *= groundFriction;
-                    velocity.z *= groundFriction;
-                    rb.velocity = velocity;
-                }
-            }
+           
+            return;
+        }
+
+       
+        Vector2 input = moveAction.ReadValue<Vector2>();
+        bool hasInput = input.magnitude > 0.1f;
+
+        if (IsGrounded() || hasInput)
+        {
+            Move();
         }
     }
 
+
     void Move()
     {
-        Vector2 input = moveAction.ReadValue<Vector2>();
-        Vector3 move = (transform.right * input.x + transform.forward * input.y) * (isCrouching ? crouchSpeed : walkSpeed);
+        if (isLaunched)
+            return;
 
-        // Always set the horizontal velocity based on input (even if input is zero)
-        Vector3 velocity = move;
-        velocity.y = rb.velocity.y;
-        rb.velocity = velocity;
+        Vector2 input = moveAction.ReadValue<Vector2>();
+        Vector3 inputDirection = (transform.right * input.x + transform.forward * input.y).normalized;
+        float speed = isCrouching ? crouchSpeed : walkSpeed;
+
+        if (IsGrounded())
+        {
+            Vector3 move = inputDirection * speed;
+            move.y = rb.velocity.y;
+            rb.velocity = move;
+        }
+        else
+        {
+            Vector3 airControl = inputDirection * speed * 0.05f;
+            Vector3 newVelocity = rb.velocity + new Vector3(airControl.x, 0f, airControl.z);
+
+            Vector3 horizontal = new Vector3(newVelocity.x, 0f, newVelocity.z);
+            if (horizontal.magnitude > speed)
+            {
+                horizontal = horizontal.normalized * speed;
+                newVelocity.x = horizontal.x;
+                newVelocity.z = horizontal.z;
+            }
+
+            rb.velocity = newVelocity;
+        }
     }
+
+
     void Look()
     {
         Vector2 mouse = lookAction.ReadValue<Vector2>() * lookSensitivity;
@@ -160,5 +195,13 @@ public class PlayerMovement : MonoBehaviour
     public bool IsGrounded()
     {
         return Physics.Raycast(transform.position, Vector3.down, (capsule.height / 2f) + 0.1f);
+    }
+
+    public bool IsActuallyGrounded()
+    {
+
+        float rayDistance = (capsule.height / 2f) + 0.05f; 
+        return Physics.Raycast(transform.position, Vector3.down, rayDistance) &&
+               Mathf.Abs(rb.velocity.y) < 0.5f; 
     }
 }
