@@ -59,7 +59,6 @@ public class PlayerMovement : MonoBehaviour
         rb.freezeRotation = true;
         currentCameraY = cameraTransform.localPosition.y;
 
-        
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -67,23 +66,26 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         Look();
-        HandleCrouch();
+
+        // Only handle crouch and jump when not launched
+        if (!isLaunched)
+        {
+            HandleCrouch();
+            if (!isGrappling)
+            {
+                HandleJump();
+            }
+        }
 
         if (isLaunched)
         {
             launchTimer -= Time.deltaTime;
-            if (launchTimer <= 0f)
+            if (launchTimer <= 0f && IsActuallyGrounded())
             {
-                isLaunched = false;
+                OnLanded();
             }
         }
-
-        if (!isGrappling && !isLaunched)
-        {
-            HandleJump();
-        }
     }
-
 
     void FixedUpdate()
     {
@@ -92,21 +94,19 @@ public class PlayerMovement : MonoBehaviour
 
         if (isLaunched)
         {
-           
+            // Apply ground friction when actually grounded during launch
             if (IsActuallyGrounded())
             {
-                isLaunched = false;
-               
                 Vector3 velocity = rb.velocity;
                 velocity.x *= groundFriction;
                 velocity.z *= groundFriction;
                 rb.velocity = velocity;
             }
-           
+            // No movement input processing during launch
             return;
         }
 
-       
+        // Normal movement when not launched
         Vector2 input = moveAction.ReadValue<Vector2>();
         bool hasInput = input.magnitude > 0.1f;
 
@@ -115,7 +115,6 @@ public class PlayerMovement : MonoBehaviour
             Move();
         }
     }
-
 
     void Move()
     {
@@ -149,12 +148,10 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-
     void Look()
     {
         Vector2 mouse = lookAction.ReadValue<Vector2>() * lookSensitivity;
 
-       
         targetXRotation -= mouse.y;
         targetXRotation = Mathf.Clamp(targetXRotation, -90f, 90f);
 
@@ -169,7 +166,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (jumpAction.WasPressedThisFrame() && IsGrounded())
         {
-            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z); 
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         }
     }
@@ -186,12 +183,28 @@ public class PlayerMovement : MonoBehaviour
         currentCameraY = Mathf.Lerp(currentCameraY, targetCameraY, Time.deltaTime * crouchTransitionSpeed);
         cameraTransform.localPosition = new Vector3(camPos.x, currentCameraY, camPos.z);
     }
+
     public void OnLaunched()
     {
         isLaunched = true;
         launchTimer = launchCooldown;
 
+        // Disable movement input actions
+        moveAction.Disable();
+        jumpAction.Disable();
+        crouchAction.Disable();
     }
+
+    private void OnLanded()
+    {
+        isLaunched = false;
+
+        // Re-enable movement input actions
+        moveAction.Enable();
+        jumpAction.Enable();
+        crouchAction.Enable();
+    }
+
     public bool IsGrounded()
     {
         return Physics.Raycast(transform.position, Vector3.down, (capsule.height / 2f) + 0.1f);
@@ -199,9 +212,8 @@ public class PlayerMovement : MonoBehaviour
 
     public bool IsActuallyGrounded()
     {
-
-        float rayDistance = (capsule.height / 2f) + 0.05f; 
+        float rayDistance = (capsule.height / 2f) + 0.05f;
         return Physics.Raycast(transform.position, Vector3.down, rayDistance) &&
-               Mathf.Abs(rb.velocity.y) < 0.5f; 
+               Mathf.Abs(rb.velocity.y) < 0.5f;
     }
 }
