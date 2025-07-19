@@ -7497,7 +7497,7 @@ MonoBehaviour:
     m_Bits: 1
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
+  m_RenderPostProcessing: 1
   m_Antialiasing: 0
   m_AntialiasingQuality: 2
   m_StopNaN: 0
@@ -14801,6 +14801,30 @@ MonoBehaviour:
   modeStatusText: {fileID: 683760937}
   shadowMode: 0
   transitionDuration: 2
+  transitionCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   lightModeObjects:
   - {fileID: 2114445641}
   - {fileID: 1333007305}
@@ -14814,6 +14838,14 @@ MonoBehaviour:
   - {fileID: 789684605}
   lightPostFX: {fileID: 170968976}
   shadowPostFX: {fileID: 415939518}
+  lightExposure: 0.8
+  lightContrast: 20
+  lightSaturation: 10
+  lightHueShift: 5
+  shadowExposure: -0.6
+  shadowContrast: -15
+  shadowSaturation: -20
+  shadowHueShift: -10
   lightSun: {fileID: 170968975}
   shadowSun: {fileID: 415939517}
   lightModeLights:
@@ -14833,6 +14865,9 @@ MonoBehaviour:
   - {fileID: 21476090}
   - {fileID: 1126986736}
   - {fileID: 1264377930}
+  audioSource: {fileID: 0}
+  lightModeSound: {fileID: 0}
+  shadowModeSound: {fileID: 0}
   dissolveShader: {fileID: 4800000, guid: ae1e907bc5517b44383287913784ae6a, type: 3}
   dissolveNoiseTexture: {fileID: 2800000, guid: 9b49a303844d6e642bf8a66ae32b97ea, type: 3}
   edgeColor: {r: 0.97404873, g: 1, b: 0, a: 1}

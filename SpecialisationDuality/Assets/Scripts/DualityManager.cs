@@ -16,6 +16,7 @@ public class DualityManager : MonoBehaviour
     [Header("Transition Settings")]
     [Range(0f, 1f)] public float shadowMode = 0f;
     public float transitionDuration = 1.5f;
+    public AnimationCurve transitionCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("World Object Groups")]
     public List<GameObject> lightModeObjects;
@@ -25,12 +26,30 @@ public class DualityManager : MonoBehaviour
     public Volume lightPostFX;
     public Volume shadowPostFX;
 
+    [Header("Color Adjustment Settings")]
+    [Header("Light Mode Settings")]
+    public float lightExposure = 0.8f;
+    public float lightContrast = 20f;
+    public float lightSaturation = 10f;
+    public float lightHueShift = 5f;
+
+    [Header("Shadow Mode Settings")]
+    public float shadowExposure = -0.6f;
+    public float shadowContrast = -15f;
+    public float shadowSaturation = -20f;
+    public float shadowHueShift = -10f;
+
     [Header("Lighting")]
     public GameObject lightSun;
     public GameObject shadowSun;
     // Light lists for smooth transitions
     public List<Light> lightModeLights;
     public List<Light> shadowModeLights;
+
+    [Header("Audio (Optional)")]
+    public AudioSource audioSource;
+    public AudioClip lightModeSound;
+    public AudioClip shadowModeSound;
 
     [Header("Dissolve Settings")]
     public Shader dissolveShader;  // Reference to the URP_DissolveEffect shader
@@ -42,6 +61,10 @@ public class DualityManager : MonoBehaviour
     private bool isInShadow = false;
     private bool isTransitioning = false;
     private Coroutine transitionRoutine;
+
+    // Color Adjustments for post-processing
+    private ColorAdjustments lightColorAdjustments;
+    private ColorAdjustments shadowColorAdjustments;
 
     // Store original materials for restoration
     private Dictionary<Renderer, Material[]> originalMaterials = new Dictionary<Renderer, Material[]>();
@@ -59,9 +82,11 @@ public class DualityManager : MonoBehaviour
     private static readonly string BASE_MAP = "_BaseMap";         // URP equivalent of _MainTex
     private static readonly string BASE_COLOR = "_BaseColor";     // URP equivalent of _Color
 
-
     private void Start()
     {
+        // Initialize post-processing color adjustments
+        InitializeColorAdjustments();
+
         // reference to the dissolve shader
         if (dissolveShader == null)
         {
@@ -74,12 +99,10 @@ public class DualityManager : MonoBehaviour
             }
         }
 
-
         if (modeStatusText != null)
         {
             modeStatusText.text = isInShadow ? "Mode: Shadow" : "Mode: Light";
         }
-
 
         // Cache original materials but don't replace them yet
         CacheMaterialsForObjects(lightModeObjects);
@@ -90,6 +113,39 @@ public class DualityManager : MonoBehaviour
 
         // Initial visibility
         SetInitialVisibility();
+    }
+
+    private void InitializeColorAdjustments()
+    {
+        // Get ColorAdjustments from light mode volume
+        if (lightPostFX != null && lightPostFX.profile.TryGet(out lightColorAdjustments))
+        {
+            // Set initial light mode values
+            lightColorAdjustments.postExposure.value = lightExposure;
+            lightColorAdjustments.contrast.value = lightContrast;
+            lightColorAdjustments.saturation.value = lightSaturation;
+            lightColorAdjustments.hueShift.value = lightHueShift;
+            Debug.Log("Light ColorAdjustments found and initialized!");
+        }
+        else
+        {
+            Debug.LogWarning("ColorAdjustments not found in Light Volume Profile! Make sure to add ColorAdjustments to your Light Volume.");
+        }
+
+        // Get ColorAdjustments from shadow mode volume
+        if (shadowPostFX != null && shadowPostFX.profile.TryGet(out shadowColorAdjustments))
+        {
+            // Set initial shadow mode values
+            shadowColorAdjustments.postExposure.value = shadowExposure;
+            shadowColorAdjustments.contrast.value = shadowContrast;
+            shadowColorAdjustments.saturation.value = shadowSaturation;
+            shadowColorAdjustments.hueShift.value = shadowHueShift;
+            Debug.Log("Shadow ColorAdjustments found and initialized!");
+        }
+        else
+        {
+            Debug.LogWarning("ColorAdjustments not found in Shadow Volume Profile! Make sure to add ColorAdjustments to your Shadow Volume.");
+        }
     }
 
     private void CacheLightIntensities()
@@ -187,6 +243,18 @@ public class DualityManager : MonoBehaviour
                 {
                     light.intensity = originalLightIntensities[light] * shadowModeIntensityFactor;
                 }
+            }
+        }
+    }
+
+    private void PlayModeSound()
+    {
+        if (audioSource != null)
+        {
+            AudioClip clipToPlay = isInShadow ? shadowModeSound : lightModeSound;
+            if (clipToPlay != null)
+            {
+                audioSource.PlayOneShot(clipToPlay);
             }
         }
     }
@@ -407,6 +475,9 @@ public class DualityManager : MonoBehaviour
     {
         isTransitioning = true;
 
+        // Play sound effect
+        PlayModeSound();
+
         // Apply dissolve materials when starting transition
         ApplyDissolveMaterials();
 
@@ -417,18 +488,30 @@ public class DualityManager : MonoBehaviour
         float startValue = isInShadow ? 1f : 0f;
         float targetValue = isInShadow ? 0f : 1f;
 
-        // Enable both light and shadow volumes temporarily
+        // Enable both light and shadow volumes temporarily for smooth transition
         if (lightPostFX != null) lightPostFX.enabled = true;
         if (shadowPostFX != null) shadowPostFX.enabled = true;
         if (lightSun != null) lightSun.SetActive(true);
         if (shadowSun != null) shadowSun.SetActive(true);
 
+        // Store starting color adjustment values
+        float startExposure = isInShadow ? shadowExposure : lightExposure;
+        float startContrast = isInShadow ? shadowContrast : lightContrast;
+        float startSaturation = isInShadow ? shadowSaturation : lightSaturation;
+        float startHueShift = isInShadow ? shadowHueShift : lightHueShift;
+
+        float targetExposure = isInShadow ? lightExposure : shadowExposure;
+        float targetContrast = isInShadow ? lightContrast : shadowContrast;
+        float targetSaturation = isInShadow ? lightSaturation : shadowSaturation;
+        float targetHueShift = isInShadow ? lightHueShift : shadowHueShift;
+
         while (time < transitionDuration)
         {
             time += Time.deltaTime;
-            float t = time / transitionDuration;
+            float t = transitionCurve.Evaluate(time / transitionDuration);
             shadowMode = Mathf.Lerp(startValue, targetValue, t);
 
+            // Apply dissolve effects
             ApplyDissolveToObjects(lightModeObjects, shadowMode, true);
             ApplyDissolveToObjects(shadowModeObjects, shadowMode, false);
 
@@ -436,6 +519,18 @@ public class DualityManager : MonoBehaviour
             float lightFactor = isInShadow ? t : 1 - t;
             float shadowFactor = isInShadow ? 1 - t : t;
             SetLightIntensities(lightFactor, shadowFactor);
+
+            // Smoothly transition color adjustments on the active volume
+            Volume currentVolume = isInShadow ? shadowPostFX : lightPostFX;
+            ColorAdjustments currentColorAdjustments = isInShadow ? shadowColorAdjustments : lightColorAdjustments;
+
+            if (currentColorAdjustments != null)
+            {
+                currentColorAdjustments.postExposure.value = Mathf.Lerp(startExposure, targetExposure, t);
+                currentColorAdjustments.contrast.value = Mathf.Lerp(startContrast, targetContrast, t);
+                currentColorAdjustments.saturation.value = Mathf.Lerp(startSaturation, targetSaturation, t);
+                currentColorAdjustments.hueShift.value = Mathf.Lerp(startHueShift, targetHueShift, t);
+            }
 
             yield return null;
         }
@@ -455,6 +550,16 @@ public class DualityManager : MonoBehaviour
 
         // Set final light states
         SetLightIntensities(!isInShadow ? 1.0f : 0.0f, isInShadow ? 1.0f : 0.0f);
+
+        // Ensure final color adjustment values are exactly set
+        ColorAdjustments finalColorAdjustments = isInShadow ? shadowColorAdjustments : lightColorAdjustments;
+        if (finalColorAdjustments != null)
+        {
+            finalColorAdjustments.postExposure.value = isInShadow ? shadowExposure : lightExposure;
+            finalColorAdjustments.contrast.value = isInShadow ? shadowContrast : lightContrast;
+            finalColorAdjustments.saturation.value = isInShadow ? shadowSaturation : lightSaturation;
+            finalColorAdjustments.hueShift.value = isInShadow ? shadowHueShift : lightHueShift;
+        }
 
         // Restore original materials when transition is complete
         RestoreOriginalMaterials();
@@ -562,5 +667,20 @@ public class DualityManager : MonoBehaviour
     public bool IsInShadowMode()
     {
         return isInShadow;
+    }
+
+    // Public getters for other scripts
+    public bool IsLightMode()
+    {
+        return !isInShadow;
+    }
+
+    // Method to be called from other scripts
+    public void SetMode(bool lightMode)
+    {
+        if (lightMode == isInShadow && !isTransitioning)
+        {
+            TriggerDimensionSwitch();
+        }
     }
 }
