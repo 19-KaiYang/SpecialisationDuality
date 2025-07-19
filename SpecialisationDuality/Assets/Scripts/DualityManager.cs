@@ -183,8 +183,16 @@ public class DualityManager : MonoBehaviour
         SetObjectsVisibilityState(shadowModeObjects, false);
 
         // Set initial state for post-processing and lighting
-        if (lightPostFX != null) lightPostFX.enabled = true;
-        if (shadowPostFX != null) shadowPostFX.enabled = false;
+        if (lightPostFX != null)
+        {
+            lightPostFX.enabled = true;
+            lightPostFX.weight = 1f;  // Full weight for light mode initially
+        }
+        if (shadowPostFX != null)
+        {
+            shadowPostFX.enabled = false;
+            shadowPostFX.weight = 0f;  // No weight for shadow mode initially
+        }
         if (lightSun != null) lightSun.SetActive(true);
         if (shadowSun != null) shadowSun.SetActive(false);
 
@@ -520,16 +528,30 @@ public class DualityManager : MonoBehaviour
             float shadowFactor = isInShadow ? 1 - t : t;
             SetLightIntensities(lightFactor, shadowFactor);
 
-            // Smoothly transition color adjustments on the active volume
-            Volume currentVolume = isInShadow ? shadowPostFX : lightPostFX;
-            ColorAdjustments currentColorAdjustments = isInShadow ? shadowColorAdjustments : lightColorAdjustments;
+            // FIXED: Update BOTH volumes simultaneously with proper weight control
+            float lightWeight = isInShadow ? t : 1 - t;        // Light volume weight
+            float shadowWeight = isInShadow ? 1 - t : t;       // Shadow volume weight
 
-            if (currentColorAdjustments != null)
+            // Set volume weights/priorities
+            if (lightPostFX != null) lightPostFX.weight = lightWeight;
+            if (shadowPostFX != null) shadowPostFX.weight = shadowWeight;
+
+            // Update light volume color adjustments to target light values
+            if (lightColorAdjustments != null)
             {
-                currentColorAdjustments.postExposure.value = Mathf.Lerp(startExposure, targetExposure, t);
-                currentColorAdjustments.contrast.value = Mathf.Lerp(startContrast, targetContrast, t);
-                currentColorAdjustments.saturation.value = Mathf.Lerp(startSaturation, targetSaturation, t);
-                currentColorAdjustments.hueShift.value = Mathf.Lerp(startHueShift, targetHueShift, t);
+                lightColorAdjustments.postExposure.value = lightExposure;
+                lightColorAdjustments.contrast.value = lightContrast;
+                lightColorAdjustments.saturation.value = lightSaturation;
+                lightColorAdjustments.hueShift.value = lightHueShift;
+            }
+
+            // Update shadow volume color adjustments to target shadow values
+            if (shadowColorAdjustments != null)
+            {
+                shadowColorAdjustments.postExposure.value = shadowExposure;
+                shadowColorAdjustments.contrast.value = shadowContrast;
+                shadowColorAdjustments.saturation.value = shadowSaturation;
+                shadowColorAdjustments.hueShift.value = shadowHueShift;
             }
 
             yield return null;
@@ -542,24 +564,22 @@ public class DualityManager : MonoBehaviour
         SetObjectsVisibilityState(lightModeObjects, !isInShadow);
         SetObjectsVisibilityState(shadowModeObjects, isInShadow);
 
-        // Post FX and lighting
-        if (lightPostFX != null) lightPostFX.enabled = !isInShadow;
-        if (shadowPostFX != null) shadowPostFX.enabled = isInShadow;
+        // Post FX and lighting - disable the unused volume
+        if (lightPostFX != null)
+        {
+            lightPostFX.enabled = !isInShadow;
+            lightPostFX.weight = !isInShadow ? 1f : 0f;
+        }
+        if (shadowPostFX != null)
+        {
+            shadowPostFX.enabled = isInShadow;
+            shadowPostFX.weight = isInShadow ? 1f : 0f;
+        }
         if (lightSun != null) lightSun.SetActive(!isInShadow);
         if (shadowSun != null) shadowSun.SetActive(isInShadow);
 
         // Set final light states
         SetLightIntensities(!isInShadow ? 1.0f : 0.0f, isInShadow ? 1.0f : 0.0f);
-
-        // Ensure final color adjustment values are exactly set
-        ColorAdjustments finalColorAdjustments = isInShadow ? shadowColorAdjustments : lightColorAdjustments;
-        if (finalColorAdjustments != null)
-        {
-            finalColorAdjustments.postExposure.value = isInShadow ? shadowExposure : lightExposure;
-            finalColorAdjustments.contrast.value = isInShadow ? shadowContrast : lightContrast;
-            finalColorAdjustments.saturation.value = isInShadow ? shadowSaturation : lightSaturation;
-            finalColorAdjustments.hueShift.value = isInShadow ? shadowHueShift : lightHueShift;
-        }
 
         // Restore original materials when transition is complete
         RestoreOriginalMaterials();
