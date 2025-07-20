@@ -9,7 +9,7 @@ public class ObjectPickup : MonoBehaviour
     public float pickupRange = 5f;
     public float holdDistance = 2f;
     public LayerMask pickupLayer = -1; // Which layers can be picked up
-    public Transform holdPosition; // Optional: specific transform to hold objects at
+    public Transform holdPosition; 
 
     private Camera playerCamera;
     private GameObject heldObject;
@@ -28,11 +28,11 @@ public class ObjectPickup : MonoBehaviour
            
         }
 
-        // Get the PlayerInput component and pickup action
+        
         playerInput = GetComponent<PlayerInput>();
-        pickupAction = playerInput.actions["Pickup"]; // Make sure to add "Pickup" action to your Input Actions asset
+        pickupAction = playerInput.actions["Pickup"]; 
 
-        // If no specific hold position is set, create one in front of the camera
+        
         if (holdPosition == null)
         {
             GameObject holdPoint = new GameObject("HoldPosition");
@@ -97,8 +97,6 @@ public class ObjectPickup : MonoBehaviour
         {
             objCollider.enabled = false;
         }
-
-        Debug.Log($"Picked up: {obj.name}");
     }
 
     void DropObject()
@@ -115,7 +113,7 @@ public class ObjectPickup : MonoBehaviour
                 objCollider.enabled = true;
             }
 
-            Debug.Log($"Dropped: {heldObject.name}");
+         
 
             heldObject = null;
             heldObjectRb = null;
@@ -126,11 +124,11 @@ public class ObjectPickup : MonoBehaviour
     {
         if (heldObject != null)
         {
-            // Smoothly move the object to the hold position
+           
             Vector3 targetPosition = holdPosition.position;
             heldObject.transform.position = Vector3.Lerp(heldObject.transform.position, targetPosition, Time.deltaTime * 10f);
 
-            // Optionally rotate the object to face the same direction as the camera
+          
             heldObject.transform.rotation = Quaternion.Lerp(heldObject.transform.rotation, holdPosition.rotation, Time.deltaTime * 5f);
         }
     }

@@ -6,6 +6,7 @@ TagManager:
   tags:
   - LightOnly
   - ShadowOnly
+  - Interactable
   layers:
   - Default
   - TransparentFX
