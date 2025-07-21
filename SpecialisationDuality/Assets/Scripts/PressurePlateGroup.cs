@@ -19,6 +19,14 @@ public class PressurePlateGroup : MonoBehaviour
 
     private int activatedPlates = 0;
     private Coroutine fadeRoutine;
+    private bool isOpen = false;
+
+
+
+    public void Update()
+    {
+        print(activatedPlates);
+    }
 
     public void PlatePressed()
     {
@@ -34,18 +42,21 @@ public class PressurePlateGroup : MonoBehaviour
 
     void CheckPlates()
     {
-        if (activatedPlates >= totalPlates)
+        if (activatedPlates >= totalPlates && !isOpen)
         {
             doorAnimator.SetTrigger("Open");
+            isOpen = true;
 
             if (fadeRoutine != null) StopCoroutine(fadeRoutine);
             fadeRoutine = StartCoroutine(FadeMessage("The door has opened!"));
         }
-        else
+        else if (activatedPlates < totalPlates && isOpen)
         {
             doorAnimator.SetTrigger("Close");
+            isOpen = false;
         }
     }
+
 
     IEnumerator FadeMessage(string message)
     {
