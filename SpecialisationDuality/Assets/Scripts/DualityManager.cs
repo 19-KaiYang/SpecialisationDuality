@@ -29,13 +29,13 @@ public class DualityManager : MonoBehaviour
     [Header("Color Adjustment Settings")]
     [Header("Light Mode Settings")]
     public float lightExposure = 0.8f;
-    public float lightContrast = 20f;
+    public float lightContrast = 100f;
     public float lightSaturation = 10f;
     public float lightHueShift = 5f;
 
     [Header("Shadow Mode Settings")]
     public float shadowExposure = -0.6f;
-    public float shadowContrast = -15f;
+    public float shadowContrast = -10f;
     public float shadowSaturation = -20f;
     public float shadowHueShift = -10f;
 
