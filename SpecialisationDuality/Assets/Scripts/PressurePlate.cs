@@ -10,7 +10,7 @@ public class PressurePlate : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if ((other.CompareTag("Player") || other.CompareTag("Interactable")) && !isPressed)
+        if (other.CompareTag("Interactable") && !isPressed)
         {
             isPressed = true;
             plateGroup.PlatePressed();
@@ -19,7 +19,7 @@ public class PressurePlate : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if ((other.CompareTag("Player") || other.CompareTag("Interactable")) && isPressed)
+        if (other.CompareTag("Interactable") && isPressed)
         {
             isPressed = false;
             plateGroup.PlateReleased();
