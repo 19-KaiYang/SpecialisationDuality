@@ -7,6 +7,12 @@ using UnityEngine.SceneManagement;
 public class MainMenu : MonoBehaviour
 {
 
+    private void Update()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
     public void onStartButtonClicked()
     {
         SceneManager.LoadScene("MainGameScene");
@@ -15,5 +21,10 @@ public class MainMenu : MonoBehaviour
     public void onQuitButtonClicked()
     {
         Application.Quit();
+    }
+
+    public void onMainMenuClicked()
+    {
+        SceneManager.LoadScene("MainMenu");
     }
 }
