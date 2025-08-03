@@ -150,6 +150,10 @@ public class PlayerMovement : MonoBehaviour
 
     void Look()
     {
+
+
+        if (Time.timeScale == 0f) return;
+
         Vector2 mouse = lookAction.ReadValue<Vector2>() * lookSensitivity;
 
         targetXRotation -= mouse.y;
