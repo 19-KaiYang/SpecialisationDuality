@@ -76,16 +76,19 @@ public class GrapplingHook : MonoBehaviour
 
     void HandleGrappleInput()
     {
-        if (Input.GetKey(grappleKey) && !isGrappling)
+        if (Input.GetKeyDown(grappleKey))
         {
-            TryStartGrapple();
-        }
-
-        if (Input.GetKeyUp(grappleKey) && isGrappling)
-        {
-            StopGrapple();
+            if (!isGrappling)
+            {
+                TryStartGrapple();
+            }
+            else
+            {
+                StopGrapple();
+            }
         }
     }
+
 
     void TryStartGrapple()
     {

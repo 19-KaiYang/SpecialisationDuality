@@ -46,10 +46,6 @@ public class DualityManager : MonoBehaviour
     public List<Light> lightModeLights;
     public List<Light> shadowModeLights;
 
-    [Header("Audio (Optional)")]
-    public AudioSource audioSource;
-    public AudioClip lightModeSound;
-    public AudioClip shadowModeSound;
 
     [Header("Dissolve Settings")]
     public Shader dissolveShader;  // Reference to the URP_DissolveEffect shader
@@ -255,17 +251,6 @@ public class DualityManager : MonoBehaviour
         }
     }
 
-    private void PlayModeSound()
-    {
-        if (audioSource != null)
-        {
-            AudioClip clipToPlay = isInShadow ? shadowModeSound : lightModeSound;
-            if (clipToPlay != null)
-            {
-                audioSource.PlayOneShot(clipToPlay);
-            }
-        }
-    }
 
     private void CacheMaterialsForObjects(List<GameObject> objects)
     {
@@ -483,8 +468,7 @@ public class DualityManager : MonoBehaviour
     {
         isTransitioning = true;
 
-        // Play sound effect
-        PlayModeSound();
+       
 
         // Apply dissolve materials when starting transition
         ApplyDissolveMaterials();
