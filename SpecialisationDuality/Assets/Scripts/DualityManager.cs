@@ -7,8 +7,7 @@ using UnityEngine.Rendering.Universal;
 
 public class DualityManager : MonoBehaviour
 {
-    [Header("Toggle Key")]
-    public KeyCode toggleKey = KeyCode.Q;
+   
 
     [Header("UI")]
     public TMP_Text modeStatusText;
@@ -439,10 +438,7 @@ public class DualityManager : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(toggleKey) && !isTransitioning)
-        {
-            TriggerDimensionSwitch();
-        }
+      
     }
 
     // Public method to trigger transition from external scripts (like the button)
@@ -454,6 +450,8 @@ public class DualityManager : MonoBehaviour
             {
                 StopCoroutine(transitionRoutine);
             }
+            AudioManager.Instance.PlaySFX("ModeSwitch");
+
             transitionRoutine = StartCoroutine(Transition());
         }
     }

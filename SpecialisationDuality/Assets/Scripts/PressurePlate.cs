@@ -12,6 +12,7 @@ public class PressurePlate : MonoBehaviour
     {
         if (other.CompareTag("Interactable") && !isPressed)
         {
+            AudioManager.Instance.PlaySFX("PressurePlate");
             isPressed = true;
             plateGroup.PlatePressed();
         }

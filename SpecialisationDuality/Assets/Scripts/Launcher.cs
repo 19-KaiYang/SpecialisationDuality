@@ -5,13 +5,14 @@ using UnityEngine;
 public class Launcher : MonoBehaviour
 {
     public float launchForce = 20f;
-    public float launchAngle = 45f; // Angle in degrees
+    public float launchAngle = 45f; 
 
     private void OnTriggerEnter(Collider other)
     {
         Rigidbody rb = other.GetComponent<Rigidbody>();
 
-        if (rb != null)
+        
+        if (other.gameObject.tag == "Player")
         {
             LaunchObject(rb);
         }
@@ -25,7 +26,8 @@ public class Launcher : MonoBehaviour
         // FIXED: Reset velocity completely, then set new velocity
         rb.velocity = launchDirection * launchForce;
 
-        // NEW: Tell PlayerMovement it was launched
+        AudioManager.Instance.PlaySFX("JumpPad");
+
         PlayerMovement playerMovement = rb.GetComponent<PlayerMovement>();
         if (playerMovement != null)
         {

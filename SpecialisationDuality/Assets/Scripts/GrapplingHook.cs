@@ -103,6 +103,7 @@ public class GrapplingHook : MonoBehaviour
                 return;
 
             StartGrapple(hit.point);
+            AudioManager.Instance.PlaySFX("Grappling");
         }
     }
 

@@ -155,7 +155,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bgmSource: {fileID: 203366352}
   sfxSource: {fileID: 203366351}
-  sfxClips: []
+  sfxClips:
+  - name: Button
+    clip: {fileID: 8300000, guid: 36e014bf50da78341957d67f8c54e0e5, type: 3}
+  - name: Grappling
+    clip: {fileID: 8300000, guid: 8ce7c7b81e6b05540a03fb280908dc4b, type: 3}
+  - name: JumpPad
+    clip: {fileID: 8300000, guid: ad233d24821eb364480ad250bca29d64, type: 3}
+  - name: ModeSwitch
+    clip: {fileID: 8300000, guid: eced6cf287d1a85488e922f1f5dd41ec, type: 3}
+  - name: PressurePlate
+    clip: {fileID: 8300000, guid: 48bf76aef6bceba4a9d80c7cee92b7cf, type: 3}
 --- !u!82 &203366351
 AudioSource:
   m_ObjectHideFlags: 0
@@ -167,7 +177,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_PlayOnAwake: 1
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
   Loop: 0

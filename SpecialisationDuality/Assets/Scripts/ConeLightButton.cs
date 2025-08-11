@@ -35,13 +35,11 @@ public class ConeLightButton : MonoBehaviour
         buttonRenderer = GetComponent<Renderer>();
 
         if (player == null)
-            Debug.LogError("Player not found! Make sure player has 'Player' tag.");
 
         // Remove any null references
         targetConeLights.RemoveAll(light => light == null);
 
-        if (targetConeLights.Count == 0)
-            Debug.LogWarning($"Button {gameObject.name} has no target cone lights assigned!");
+    
 
        
 
@@ -63,6 +61,7 @@ public class ConeLightButton : MonoBehaviour
         // Handle interaction
         if (playerInRange && Input.GetKeyDown(interactKey))
         {
+            AudioManager.Instance.PlaySFX("Button");
             if (toggleAllTogether)
             {
                 ToggleAllLights();
@@ -103,9 +102,8 @@ public class ConeLightButton : MonoBehaviour
         if (currentCycleState > 0 && currentCycleState <= targetConeLights.Count)
             targetConeLights[currentCycleState - 1].SetLightActive(true);
 
-       
-        PlayButtonSound();
-        Debug.Log($"[{name}] Cycle state: {currentCycleState}");
+
+
     }
 
     private void UpdateCycleStateFromLights()
@@ -153,14 +151,6 @@ public class ConeLightButton : MonoBehaviour
         return "Unknown state";
     }
 
-
-    private void PlayButtonSound()
-    {
-        if (audioSource != null && buttonPressSound != null)
-        {
-            audioSource.PlayOneShot(buttonPressSound);
-        }
-    }
 
     // Public method to add a light to the control list
     public void AddTargetLight(ConeLightReveal light)

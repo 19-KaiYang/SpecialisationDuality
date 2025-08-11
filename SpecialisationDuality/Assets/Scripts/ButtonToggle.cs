@@ -17,10 +17,6 @@ public class ButtonToggle : MonoBehaviour
         dualityManager = FindObjectOfType<DualityManager>();
         player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
-        if (dualityManager == null)
-            Debug.LogError("DualityManager not found!");
-        if (player == null)
-            Debug.LogError("Player not found! Make sure player has 'Player' tag.");
     }
 
     private void Update()
@@ -34,10 +30,12 @@ public class ButtonToggle : MonoBehaviour
         // Handle interaction
         if (playerInRange && Input.GetKeyDown(interactKey))
         {
+            AudioManager.Instance.PlaySFX("Button");
             if (dualityManager != null && !dualityManager.IsTransitioning())
             {
                 dualityManager.TriggerDimensionSwitch();
-                Debug.Log("Dimension switched via button!");
+               
+             
             }
         }
     }
