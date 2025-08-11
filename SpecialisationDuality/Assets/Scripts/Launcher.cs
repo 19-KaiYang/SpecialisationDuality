@@ -23,7 +23,6 @@ public class Launcher : MonoBehaviour
         // Calculate launch direction based on launcher's forward direction and angle
         Vector3 launchDirection = CalculateLaunchDirection();
 
-        // FIXED: Reset velocity completely, then set new velocity
         rb.velocity = launchDirection * launchForce;
 
         AudioManager.Instance.PlaySFX("JumpPad");
@@ -37,14 +36,12 @@ public class Launcher : MonoBehaviour
 
     private Vector3 CalculateLaunchDirection()
     {
-        // Convert angle to radians
         float angleRad = launchAngle * Mathf.Deg2Rad;
 
-        // Calculate launch direction based on forward direction and angle
         Vector3 forward = transform.forward;
         Vector3 up = Vector3.up;
 
-        // Create launch vector with the specified angle
+        // Launch vector with specified angle
         Vector3 launchDirection = (forward * Mathf.Cos(angleRad) + up * Mathf.Sin(angleRad)).normalized;
 
         return launchDirection;

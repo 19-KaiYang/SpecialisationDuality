@@ -57,7 +57,6 @@ public class GrapplingHook : MonoBehaviour
     {
         HandleGrappleInput();
         UpdateLineRenderer();
-        //HandleRopeClimbing();
     }
 
     void FixedUpdate()
@@ -147,7 +146,6 @@ public class GrapplingHook : MonoBehaviour
        
         Vector3 tangentVelocity = currentVelocity - Vector3.Dot(currentVelocity, toGrapple) * toGrapple;
 
-        // Apply that as your new velocity
         rb.velocity = tangentVelocity * releaseBoostMultiplier;
     }
 
@@ -158,19 +156,16 @@ public class GrapplingHook : MonoBehaviour
         Vector3 ropeVector = grapplePoint - playerPos;
         float currentDistance = ropeVector.magnitude;
 
-        // Only apply rope constraint if player is beyond rope length
         if (currentDistance > ropeLength)
         {
             Vector3 ropeDirection = ropeVector.normalized;
             Vector3 playerVelocity = rb.velocity;
 
-            // Project velocity onto rope direction
             float velocityAlongRope = Vector3.Dot(playerVelocity, ropeDirection);
 
             // Only constrain if moving away from anchor point
             if (velocityAlongRope > 0)
             {
-                // Remove velocity component along rope - pure constraint
                 Vector3 constrainedVelocity = playerVelocity - (ropeDirection * velocityAlongRope);
                 rb.velocity = constrainedVelocity;
             }
@@ -198,7 +193,6 @@ public class GrapplingHook : MonoBehaviour
             Vector3 forward = cameraTransform.forward;
             Vector3 right = cameraTransform.right;
 
-            // Remove Y component to keep movement horizontal
             forward.y = 0;
             right.y = 0;
             forward.Normalize();

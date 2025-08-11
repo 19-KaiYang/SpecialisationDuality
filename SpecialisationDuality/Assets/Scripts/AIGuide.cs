@@ -318,7 +318,6 @@ public class AIGuide : MonoBehaviour
             }
         }
 
-        // Handle guide's own colliders
         BoxCollider[] guideColliders = GetComponentsInChildren<BoxCollider>();
         foreach (var col in guideColliders)
         {

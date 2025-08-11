@@ -102,7 +102,6 @@ public class PlayerMovement : MonoBehaviour
                 velocity.z *= groundFriction;
                 rb.velocity = velocity;
             }
-            // No movement input processing during launch
             return;
         }
 

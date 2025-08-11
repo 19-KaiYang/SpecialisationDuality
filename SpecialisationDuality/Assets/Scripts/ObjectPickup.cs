@@ -8,7 +8,7 @@ public class ObjectPickup : MonoBehaviour
     [Header("Pickup Settings")]
     public float pickupRange = 5f;
     public float holdDistance = 2f;
-    public LayerMask pickupLayer = -1; // Which layers can be picked up
+    public LayerMask pickupLayer = -1; 
     public Transform holdPosition; 
 
     private Camera playerCamera;
@@ -21,7 +21,7 @@ public class ObjectPickup : MonoBehaviour
 
     void Awake()
     {
-        // Get the camera - assumes it's a child of the player
+     
         playerCamera = GetComponentInChildren<Camera>();
         if (playerCamera == null)
         {
@@ -58,7 +58,7 @@ public class ObjectPickup : MonoBehaviour
             }
         }
 
-        // Keep the held object at the hold position
+     
         if (heldObject != null)
         {
             MoveHeldObject();
@@ -74,7 +74,7 @@ public class ObjectPickup : MonoBehaviour
         {
             GameObject hitObject = hit.collider.gameObject;
 
-            // Check if the object has a Rigidbody (required for pickup)
+           
             Rigidbody rb = hitObject.GetComponent<Rigidbody>();
             if (rb != null)
             {
@@ -88,10 +88,10 @@ public class ObjectPickup : MonoBehaviour
         heldObject = obj;
         heldObjectRb = rb;
 
-        // Make the object kinematic so it doesn't fall due to gravity
+        // Kinematic to make object not fall
         heldObjectRb.isKinematic = true;
 
-        // Optionally disable the collider to prevent it from blocking the player
+   
         Collider objCollider = obj.GetComponent<Collider>();
         if (objCollider != null)
         {

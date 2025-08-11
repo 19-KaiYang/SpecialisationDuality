@@ -14,7 +14,6 @@ public class UiModeControls : MonoBehaviour
 
     void Start()
     {
-        // Get references if not assigned
         if (dualityManager == null)
             dualityManager = FindObjectOfType<DualityManager>();
 
@@ -29,7 +28,6 @@ public class UiModeControls : MonoBehaviour
             return;
         }
 
-        // Initialize based on current mode
         if (dualityManager != null)
         {
             lastKnownMode = dualityManager.IsInShadowMode();

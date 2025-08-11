@@ -5,12 +5,10 @@ using UnityEngine;
 public class ConeLightReveal : MonoBehaviour
 {
     [Header("Light Control")]
-    public bool isLightActive = true; // Can be controlled by buttons
+    public bool isLightActive = true; 
 
     [Header("GameObject Control")]
-    [Tooltip("GameObject to show when light is active, hide when inactive")]
     public GameObject controlledObject;
-    [Tooltip("If true, shows object when light is ON. If false, shows object when light is OFF")]
     public bool showWhenLightActive = true;
 
     [Header("Dissolve Settings")]
@@ -44,7 +42,6 @@ public class ConeLightReveal : MonoBehaviour
         dualityManager = FindObjectOfType<DualityManager>();
         if (dualityManager == null)
         {
-            Debug.LogError("DualityManager not found!");
             enabled = false;
             return;
         }
@@ -55,11 +52,10 @@ public class ConeLightReveal : MonoBehaviour
         Collider triggerCollider = GetComponent<Collider>();
         if (triggerCollider == null || !triggerCollider.isTrigger)
         {
-            Debug.LogError("ConeLightReveal needs a Collider component set as trigger!");
             enabled = false;
             return;
         }
-        UpdateControlledObject(); // Initialize controlled object state
+        UpdateControlledObject();
     }
 
     private void Update()
@@ -77,7 +73,7 @@ public class ConeLightReveal : MonoBehaviour
         {
             lastLightActiveState = isLightActive;
             HandleLightToggle();
-            UpdateControlledObject(); // Update controlled object when light state changes
+            UpdateControlledObject(); 
         }
 
         CheckForObjectsToRestore();
@@ -99,7 +95,7 @@ public class ConeLightReveal : MonoBehaviour
     {
         if (controlledObject != null)
         {
-            // Show object based on THIS specific light's state and showWhenLightActive setting
+         
             bool shouldShow = showWhenLightActive ? isLightActive : !isLightActive;
             controlledObject.SetActive(shouldShow);
 
@@ -107,8 +103,6 @@ public class ConeLightReveal : MonoBehaviour
         }
     }
 
-
-    // Rest of your existing methods remain unchanged...
     private void HandleLightToggle()
     {
         // When light is turned off, restore all affected objects to normal state
@@ -118,7 +112,6 @@ public class ConeLightReveal : MonoBehaviour
         }
         else
         {
-            // When light is turned on, re-evaluate all objects in trigger
             HandleModeSwitch();
         }
     }
