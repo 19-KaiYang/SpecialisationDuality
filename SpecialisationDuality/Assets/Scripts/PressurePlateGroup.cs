@@ -44,6 +44,7 @@ public class PressurePlateGroup : MonoBehaviour
     {
         if (activatedPlates >= totalPlates && !isOpen)
         {
+            AudioManager.Instance.PlaySFX("Gate");
             doorAnimator.SetTrigger("Open");
             isOpen = true;
 

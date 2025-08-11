@@ -41,7 +41,6 @@ public class DualityManager : MonoBehaviour
     [Header("Lighting")]
     public GameObject lightSun;
     public GameObject shadowSun;
-    // Light lists for smooth transitions
     public List<Light> lightModeLights;
     public List<Light> shadowModeLights;
 
@@ -120,12 +119,8 @@ public class DualityManager : MonoBehaviour
             lightColorAdjustments.contrast.value = lightContrast;
             lightColorAdjustments.saturation.value = lightSaturation;
             lightColorAdjustments.hueShift.value = lightHueShift;
-            Debug.Log("Light ColorAdjustments found and initialized!");
         }
-        else
-        {
-            Debug.LogWarning("ColorAdjustments not found in Light Volume Profile! Make sure to add ColorAdjustments to your Light Volume.");
-        }
+
 
         // Get ColorAdjustments from shadow mode volume
         if (shadowPostFX != null && shadowPostFX.profile.TryGet(out shadowColorAdjustments))
@@ -135,12 +130,9 @@ public class DualityManager : MonoBehaviour
             shadowColorAdjustments.contrast.value = shadowContrast;
             shadowColorAdjustments.saturation.value = shadowSaturation;
             shadowColorAdjustments.hueShift.value = shadowHueShift;
-            Debug.Log("Shadow ColorAdjustments found and initialized!");
+         
         }
-        else
-        {
-            Debug.LogWarning("ColorAdjustments not found in Shadow Volume Profile! Make sure to add ColorAdjustments to your Shadow Volume.");
-        }
+
     }
 
     private void CacheLightIntensities()
@@ -165,7 +157,6 @@ public class DualityManager : MonoBehaviour
                 if (light != null && !originalLightIntensities.ContainsKey(light))
                 {
                     originalLightIntensities[light] = light.intensity;
-                    // Initially set shadow lights to 0 intensity
                     light.intensity = 0f;
                 }
             }
@@ -181,12 +172,12 @@ public class DualityManager : MonoBehaviour
         if (lightPostFX != null)
         {
             lightPostFX.enabled = true;
-            lightPostFX.weight = 1f;  // Full weight for light mode initially
+            lightPostFX.weight = 1f; 
         }
         if (shadowPostFX != null)
         {
             shadowPostFX.enabled = false;
-            shadowPostFX.weight = 0f;  // No weight for shadow mode initially
+            shadowPostFX.weight = 0f;  
         }
         if (lightSun != null) lightSun.SetActive(true);
         if (shadowSun != null) shadowSun.SetActive(false);
@@ -440,8 +431,6 @@ public class DualityManager : MonoBehaviour
     {
       
     }
-
-    // Public method to trigger transition from external scripts (like the button)
     public void TriggerDimensionSwitch()
     {
         if (!isTransitioning)
@@ -456,7 +445,6 @@ public class DualityManager : MonoBehaviour
         }
     }
 
-    // Public method to check if currently transitioning
     public bool IsTransitioning()
     {
         return isTransitioning;
@@ -510,9 +498,8 @@ public class DualityManager : MonoBehaviour
             float shadowFactor = isInShadow ? 1 - t : t;
             SetLightIntensities(lightFactor, shadowFactor);
 
-            // FIXED: Update BOTH volumes simultaneously with proper weight control
-            float lightWeight = isInShadow ? t : 1 - t;        // Light volume weight
-            float shadowWeight = isInShadow ? 1 - t : t;       // Shadow volume weight
+            float lightWeight = isInShadow ? t : 1 - t;       
+            float shadowWeight = isInShadow ? 1 - t : t;      
 
             // Set volume weights/priorities
             if (lightPostFX != null) lightPostFX.weight = lightWeight;
@@ -671,13 +658,11 @@ public class DualityManager : MonoBehaviour
         return isInShadow;
     }
 
-    // Public getters for other scripts
     public bool IsLightMode()
     {
         return !isInShadow;
     }
 
-    // Method to be called from other scripts
     public void SetMode(bool lightMode)
     {
         if (lightMode == isInShadow && !isTransitioning)

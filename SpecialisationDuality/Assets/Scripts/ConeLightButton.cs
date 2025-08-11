@@ -15,7 +15,6 @@ public class ConeLightButton : MonoBehaviour
     [Tooltip("If true, all lights toggle together. If false, they cycle through states.")]
     public bool toggleAllTogether = true;
 
-    [Tooltip("Only used when toggleAllTogether is false. Cycles through: All Off -> Light 1 -> Light 2 -> Both On")]
     public bool useCycleMode = false;
 
  
@@ -27,7 +26,7 @@ public class ConeLightButton : MonoBehaviour
     private Transform player;
     private bool playerInRange = false;
     private Renderer buttonRenderer;
-    private int currentCycleState = 0; // 0: all off, 1: first light, 2: second light, 3: all on
+    private int currentCycleState = 0; 
 
     private void Start()
     {
@@ -39,9 +38,6 @@ public class ConeLightButton : MonoBehaviour
         // Remove any null references
         targetConeLights.RemoveAll(light => light == null);
 
-    
-
-       
 
         // Initialize cycle state based on current light states
         if (useCycleMode && !toggleAllTogether)
@@ -91,14 +87,12 @@ public class ConeLightButton : MonoBehaviour
     {
         if (targetConeLights.Count == 0) return;
 
-        // States: 0 = ALL OFF, 1..N = ONLY that index ON
         currentCycleState = (currentCycleState + 1) % (targetConeLights.Count + 1);
 
-        // Turn off everything first
+        // Turn off all lights 
         foreach (var light in targetConeLights)
             light.SetLightActive(false);
 
-        // If 1..N, turn on that one
         if (currentCycleState > 0 && currentCycleState <= targetConeLights.Count)
             targetConeLights[currentCycleState - 1].SetLightActive(true);
 
@@ -136,23 +130,8 @@ public class ConeLightButton : MonoBehaviour
         }
     }
 
-    private string GetCycleStateDescription()
-    {
-        if (targetConeLights.Count == 0) return "No lights";
 
-        if (currentCycleState == 0)
-        {
-            return targetConeLights.Count > 1 ? "All lights ON" : "Light OFF";
-        }
-        else if (currentCycleState <= targetConeLights.Count)
-        {
-            return $"Light {currentCycleState} ON only";
-        }
-        return "Unknown state";
-    }
-
-
-    // Public method to add a light to the control list
+ 
     public void AddTargetLight(ConeLightReveal light)
     {
         if (light != null && !targetConeLights.Contains(light))
@@ -162,7 +141,7 @@ public class ConeLightButton : MonoBehaviour
         }
     }
 
-    // Public method to remove a light from the control list
+
     public void RemoveTargetLight(ConeLightReveal light)
     {
         if (targetConeLights.Contains(light))
@@ -172,7 +151,7 @@ public class ConeLightButton : MonoBehaviour
         }
     }
 
-    // Public method to get the number of active lights
+ 
     public int GetActiveLightCount()
     {
         int count = 0;
@@ -185,23 +164,23 @@ public class ConeLightButton : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        // Draw interaction range
+    
         Gizmos.color = playerInRange ? Color.green : Color.yellow;
         Gizmos.DrawWireSphere(transform.position, interactionRange);
 
-        // Draw lines to all target cone lights
+     
         for (int i = 0; i < targetConeLights.Count; i++)
         {
             if (targetConeLights[i] != null)
             {
-                // Different colors for different lights
+               
                 Color lineColor = targetConeLights[i].isLightActive ? Color.cyan : Color.red;
                 if (i == 1) lineColor = targetConeLights[i].isLightActive ? Color.blue : Color.magenta;
 
                 Gizmos.color = lineColor;
                 Gizmos.DrawLine(transform.position, targetConeLights[i].transform.position);
 
-                // Draw a small sphere at the target to show which light is which
+              
                 Gizmos.DrawWireSphere(targetConeLights[i].transform.position, 0.5f);
             }
         }

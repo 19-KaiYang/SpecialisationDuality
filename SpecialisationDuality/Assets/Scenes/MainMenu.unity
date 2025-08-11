@@ -166,6 +166,8 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: eced6cf287d1a85488e922f1f5dd41ec, type: 3}
   - name: PressurePlate
     clip: {fileID: 8300000, guid: 48bf76aef6bceba4a9d80c7cee92b7cf, type: 3}
+  - name: Gate
+    clip: {fileID: 8300000, guid: f46875b8da5da654dab58f0d2522e37d, type: 3}
 --- !u!82 &203366351
 AudioSource:
   m_ObjectHideFlags: 0

@@ -55,7 +55,6 @@ public class AIGuide : MonoBehaviour
         dualityManager = FindObjectOfType<DualityManager>();
         if (dualityManager == null)
         {
-            Debug.LogError("DualityManager not found!");
             enabled = false;
             return;
         }
@@ -76,7 +75,7 @@ public class AIGuide : MonoBehaviour
         }
         else if (waypoints == null || waypoints.Length == 0)
         {
-            Debug.LogWarning("No waypoints set for AIGuide AI movement!");
+
         }
     }
 
@@ -91,11 +90,11 @@ public class AIGuide : MonoBehaviour
             HandleModeSwitch();
         }
 
-        // Only perform guide functions if active in current mode
+      
         if (!isActiveInCurrentMode)
             return;
 
-        // Check for objects in circular area
+       
         CheckObjectsInArea();
         CheckForObjectsToRestore();
     }
@@ -105,7 +104,7 @@ public class AIGuide : MonoBehaviour
         bool inShadow = dualityManager.IsInShadowMode();
         bool wasActive = isActiveInCurrentMode;
 
-        // Determine if guide should be active based on its tag and current mode
+        // Check Tags
         if (gameObject.CompareTag("ShadowOnly"))
         {
             isActiveInCurrentMode = inShadow;
@@ -165,7 +164,7 @@ public class AIGuide : MonoBehaviour
             // Calculate next waypoint index
             GetNextWaypointIndex();
 
-            // Check if we should still be moving (in case mode changed during movement)
+            // Check if we still need be moving 
             if (!isActiveInCurrentMode)
                 break;
         }
