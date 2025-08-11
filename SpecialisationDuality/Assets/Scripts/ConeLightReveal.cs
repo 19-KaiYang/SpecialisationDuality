@@ -7,13 +7,14 @@ public class ConeLightReveal : MonoBehaviour
     [Header("Light Control")]
     public bool isLightActive = true; // Can be controlled by buttons
 
+    [Header("GameObject Control")]
+    [Tooltip("GameObject to show when light is active, hide when inactive")]
+    public GameObject controlledObject;
+    [Tooltip("If true, shows object when light is ON. If false, shows object when light is OFF")]
+    public bool showWhenLightActive = true;
+
     [Header("Dissolve Settings")]
     public float dissolveSpeed = 2f;
-
-    [Header("Visual Feedback")]
-    public GameObject lightVisualEffect; 
-    public Material activeMaterial; 
-    public Material inactiveMaterial; 
 
     [Header("Debug")]
     public bool showDebugGizmos = true;
@@ -58,8 +59,7 @@ public class ConeLightReveal : MonoBehaviour
             enabled = false;
             return;
         }
-
-        UpdateLightVisuals();
+        UpdateControlledObject(); // Initialize controlled object state
     }
 
     private void Update()
@@ -77,7 +77,7 @@ public class ConeLightReveal : MonoBehaviour
         {
             lastLightActiveState = isLightActive;
             HandleLightToggle();
-            UpdateLightVisuals();
+            UpdateControlledObject(); // Update controlled object when light state changes
         }
 
         CheckForObjectsToRestore();
@@ -95,33 +95,20 @@ public class ConeLightReveal : MonoBehaviour
         Debug.Log($"Cone light {gameObject.name} set to: {(isLightActive ? "ON" : "OFF")}");
     }
 
-    private void UpdateLightVisuals()
+    private void UpdateControlledObject()
     {
-        // Update visual feedback
-        if (lightVisualEffect != null)
+        if (controlledObject != null)
         {
-            Light lightComp = lightVisualEffect.GetComponent<Light>();
-            if (lightComp != null)
-            {
-                lightComp.enabled = isLightActive;
-            }
-        }
+            // Show object based on THIS specific light's state and showWhenLightActive setting
+            bool shouldShow = showWhenLightActive ? isLightActive : !isLightActive;
+            controlledObject.SetActive(shouldShow);
 
-        // Update material if specified
-        Renderer rend = GetComponent<Renderer>();
-        if (rend != null)
-        {
-            if (isLightActive && activeMaterial != null)
-            {
-                rend.material = activeMaterial;
-            }
-            else if (!isLightActive && inactiveMaterial != null)
-            {
-                rend.material = inactiveMaterial;
-            }
+            Debug.Log($"Controlled object {controlledObject.name} set to: {(shouldShow ? "ACTIVE" : "INACTIVE")} - Light {gameObject.name} is {(isLightActive ? "ON" : "OFF")}");
         }
     }
 
+
+    // Rest of your existing methods remain unchanged...
     private void HandleLightToggle()
     {
         // When light is turned off, restore all affected objects to normal state
@@ -160,7 +147,7 @@ public class ConeLightReveal : MonoBehaviour
 
     private void HandleModeSwitch()
     {
-        if (!isLightActive) return; 
+        if (!isLightActive) return;
 
         bool inShadow = dualityManager.IsInShadowMode();
 
@@ -232,7 +219,7 @@ public class ConeLightReveal : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
-        if (!isLightActive) return; 
+        if (!isLightActive) return;
 
         GameObject obj = other.transform.root.gameObject;
         if (!obj.CompareTag("LightOnly") && !obj.CompareTag("ShadowOnly")) return;
@@ -461,6 +448,14 @@ public class ConeLightReveal : MonoBehaviour
             Gizmos.color = isLightActive ? Color.yellow : Color.gray;
             Gizmos.matrix = transform.localToWorldMatrix;
             Gizmos.DrawWireCube(box.center, box.size);
+        }
+
+        // Draw line to controlled object
+        if (controlledObject != null)
+        {
+            Gizmos.color = controlledObject.activeInHierarchy ? Color.green : Color.red;
+            Gizmos.DrawLine(transform.position, controlledObject.transform.position);
+            Gizmos.DrawWireSphere(controlledObject.transform.position, 0.3f);
         }
     }
 

@@ -18,10 +18,7 @@ public class ConeLightButton : MonoBehaviour
     [Tooltip("Only used when toggleAllTogether is false. Cycles through: All Off -> Light 1 -> Light 2 -> Both On")]
     public bool useCycleMode = false;
 
-    [Header("Visual Feedback")]
-    public Material buttonOnMaterial;
-    public Material buttonOffMaterial;
-    public Material buttonMixedMaterial; // When some lights are on, some off
+ 
 
     [Header("Audio")]
     public AudioSource audioSource;
@@ -46,7 +43,7 @@ public class ConeLightButton : MonoBehaviour
         if (targetConeLights.Count == 0)
             Debug.LogWarning($"Button {gameObject.name} has no target cone lights assigned!");
 
-        UpdateButtonVisuals();
+       
 
         // Initialize cycle state based on current light states
         if (useCycleMode && !toggleAllTogether)
@@ -84,47 +81,31 @@ public class ConeLightButton : MonoBehaviour
     {
         if (targetConeLights.Count == 0) return;
 
-        // toggle each light individually
         foreach (var light in targetConeLights)
-        {
             light.ToggleLight();
-        }
 
-       
+        
+      
     }
+
     private void CycleThroughLights()
     {
         if (targetConeLights.Count == 0) return;
 
+        // States: 0 = ALL OFF, 1..N = ONLY that index ON
         currentCycleState = (currentCycleState + 1) % (targetConeLights.Count + 1);
 
-        // Turn off all lights first
+        // Turn off everything first
         foreach (var light in targetConeLights)
-        {
             light.SetLightActive(false);
-        }
 
-        // Then turn on the appropriate lights based on cycle state
+        // If 1..N, turn on that one
         if (currentCycleState > 0 && currentCycleState <= targetConeLights.Count)
-        {
-            // Turn on individual light (states 1, 2, etc.)
             targetConeLights[currentCycleState - 1].SetLightActive(true);
-        }
-        else if (currentCycleState == 0 && targetConeLights.Count > 1)
-        {
-            // State 0 for 2+ lights: turn on all lights
-            foreach (var light in targetConeLights)
-            {
-                light.SetLightActive(true);
-            }
-        }
 
-
-        UpdateButtonVisuals();
+       
         PlayButtonSound();
-
-        string stateDescription = GetCycleStateDescription();
-        Debug.Log($"Button {gameObject.name} cycled to state {currentCycleState}: {stateDescription}");
+        Debug.Log($"[{name}] Cycle state: {currentCycleState}");
     }
 
     private void UpdateCycleStateFromLights()
@@ -172,38 +153,6 @@ public class ConeLightButton : MonoBehaviour
         return "Unknown state";
     }
 
-    private void UpdateButtonVisuals()
-    {
-        if (buttonRenderer == null || targetConeLights.Count == 0) return;
-
-        int activeLights = 0;
-        foreach (var light in targetConeLights)
-        {
-            if (light.isLightActive) activeLights++;
-        }
-
-        // Choose material based on light states
-        if (activeLights == 0)
-        {
-            // All lights off
-            if (buttonOffMaterial != null)
-                buttonRenderer.material = buttonOffMaterial;
-        }
-        else if (activeLights == targetConeLights.Count)
-        {
-            // All lights on
-            if (buttonOnMaterial != null)
-                buttonRenderer.material = buttonOnMaterial;
-        }
-        else
-        {
-            // Mixed state - some on, some off
-            if (buttonMixedMaterial != null)
-                buttonRenderer.material = buttonMixedMaterial;
-            else if (buttonOnMaterial != null)
-                buttonRenderer.material = buttonOnMaterial; 
-        }
-    }
 
     private void PlayButtonSound()
     {
@@ -219,7 +168,7 @@ public class ConeLightButton : MonoBehaviour
         if (light != null && !targetConeLights.Contains(light))
         {
             targetConeLights.Add(light);
-            UpdateButtonVisuals();
+           
         }
     }
 
@@ -229,7 +178,7 @@ public class ConeLightButton : MonoBehaviour
         if (targetConeLights.Contains(light))
         {
             targetConeLights.Remove(light);
-            UpdateButtonVisuals();
+           
         }
     }
 
